@@ -92,7 +92,7 @@ export default function Header() {
                 className="w-10 h-10 rounded-full bg-slate-800 text-white flex items-center justify-center font-bold text-sm border-2 border-transparent group-hover:border-slate-200 transition"
                 onClick={() => router.push(user.userName ? `/profile/${user.userName}` : '/profile/me')}
               >
-                {user ? (
+                {mergedUser?.userProfile?.profilePicture || mergedUser?.avatar ? (
                    <img src={getAvatarUrl(mergedUser)} alt="Avatar" className="w-full h-full rounded-full object-cover" />
                 ) : (
                    initial

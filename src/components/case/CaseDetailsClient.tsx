@@ -60,21 +60,6 @@ export default function CaseDetailsClient({ id, initialData, initialOpinions }: 
                    onAddEvidenceClick={() => setIsAddCaseEvidenceModalOpen(true)}
                 />
                 
-                {/* Case Dedicated Discussion (Only show here if claims exist) */}
-                {counts.claims > 0 && (
-                  <div className="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-sm">
-                     <div className="flex items-center gap-3 mb-4">
-                        <div className="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center text-slate-600">
-                           <MessageCircle size={16} />
-                        </div>
-                        <div>
-                           <h3 className="font-bold text-slate-900 text-sm">ঘটনা নিয়ে আলোচনা</h3>
-                           <p className="text-[10px] text-slate-500">সম্পূর্ণ কেস সম্পর্কে আপনার মতামত জানান</p>
-                        </div>
-                     </div>
-                     <DiscussionComments targetType="CASE" targetId={data.id} />
-                  </div>
-                )}
              </div>
           </div>
 
@@ -87,21 +72,7 @@ export default function CaseDetailsClient({ id, initialData, initialOpinions }: 
                 onAddClaimClick={() => setIsAddClaimModalOpen(true)}
              />
 
-             {/* Case Dedicated Discussion (Show here if NO claims exist) */}
-             {counts.claims === 0 && (
-                <div className="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-sm">
-                   <div className="flex items-center gap-3 mb-4">
-                      <div className="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center text-slate-600">
-                         <MessageCircle size={16} />
-                      </div>
-                      <div>
-                         <h3 className="font-bold text-slate-900 text-sm">ঘটনা নিয়ে আলোচনা</h3>
-                         <p className="text-[10px] text-slate-500">সম্পূর্ণ কেস সম্পর্কে আপনার মতামত জানান</p>
-                      </div>
-                   </div>
-                   <DiscussionComments targetType="CASE" targetId={data.id} />
-                </div>
-             )}
+             {/* Empty Claim State Discussion has been moved to Tabs in CompactCaseDetails */}
           </div>
 
         </div>

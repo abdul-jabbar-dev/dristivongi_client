@@ -21,7 +21,7 @@ export function resolveMediaUrl(url: string | undefined): string {
 export const getAvatarUrl = (user: any): string => {
     const defaultImg = '/profile/default_profile.png';
     if (!user) return defaultImg;
-    const pic = user.userProfile?.profilePicture || user.avatar;
+    const pic = user.userProfile?.profilePicture || user.avatar || user.profilePicture;
     if (pic) return resolveMediaUrl(pic);
     
     return defaultImg;

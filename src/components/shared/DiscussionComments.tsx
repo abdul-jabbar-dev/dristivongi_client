@@ -17,7 +17,7 @@ interface Source {
 export default function DiscussionComments({ targetType, targetId, previewMode }: { targetType: 'CASE' | 'CLAIM' | 'EVIDENCE' | 'SOURCE', targetId: string, previewMode?: boolean }) {
    const { data: opinionsResponse, isLoading } = useGetOpinionsQuery({ targetType, targetId });
    const allOpinions = opinionsResponse?.data || [];
-   let opinions = allOpinions.filter((op: any) => op.value === 'DISCUSSION');
+   let opinions = allOpinions.filter((op: any) => op.value === 'DISCUSSION').sort((a: any, b: any) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
    if (previewMode) {
       opinions = opinions.slice(0, 2);
    }
@@ -196,7 +196,7 @@ export default function DiscussionComments({ targetType, targetId, previewMode }
          {isLoading && <div className="text-center py-4 text-xs text-slate-400">লোড হচ্ছে...</div>}
 
          {!isLoading && opinions.length > 0 && (
-            <div className="space-y-4">
+            <div className="space-y-4 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
                {opinions.map((op: any) => (
                   <div key={op.id} className="flex gap-3">
                      {/* Parent Avatar with connecting line */}

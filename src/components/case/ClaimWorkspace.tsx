@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { TCaseType } from '@/redux/feature/case/case.type';
 import { Crown, Users, Camera, Link as LinkIcon, MessageSquare, MessageCircle, FileText, Edit, Plus, MapPin, ArrowUpRight, Menu, X, Search, ChevronDown } from 'lucide-react';
-import { resolveMediaUrl , getAvatarUrl} from '@/lib/utils';
+import { resolveMediaUrl, getAvatarUrl } from '@/lib/utils';
 import EvidenceSection from './EvidenceSection';
 import AssessmentPoll from '@/components/opinion/AssessmentPoll';
 import StaticTestBadge from '@/components/common/StaticTestBadge';
@@ -25,7 +25,7 @@ export default function ClaimWorkspace({
    setSelectedClaimId: (id: string) => void,
    onAddClaimClick: () => void
 }) {
-   const [activeTab, setActiveTab] = useState<'Evidence' | 'Sources' | 'Opinions' | 'Discussion'>('Evidence');
+   const [activeTab, setActiveTab] = useState<'EVIDENCE' | 'DISCUSSION'>('EVIDENCE');
    const [isAddEvidenceOpen, setIsAddEvidenceOpen] = useState(false);
    const [isClaimsPanelOpen, setIsClaimsPanelOpen] = useState(false);
    const [searchQuery, setSearchQuery] = useState('');
@@ -100,6 +100,8 @@ export default function ClaimWorkspace({
 
                {/* Right: Dropdown & Nav */}
                <div className="flex items-center gap-2 z-30">
+
+
                   <div className="relative flex items-center shrink-0">
                      <button
                         onClick={() => setIsClaimsPanelOpen(!isClaimsPanelOpen)}
@@ -137,7 +139,7 @@ export default function ClaimWorkspace({
                                           key={claim.id || idx}
                                           onClick={() => {
                                              setSelectedClaimId(claim.id);
-                                             setActiveTab('Evidence');
+                                             setActiveTab('EVIDENCE');
                                              setIsClaimsPanelOpen(false);
                                           }}
                                           className={`w-full text-left p-2.5 rounded-lg transition-all flex items-center gap-2.5 ${isSelected
@@ -157,6 +159,19 @@ export default function ClaimWorkspace({
                                     );
                                  })}
                               </div>
+                              {isAuthenticated && (
+                                 <div className="p-2 border-t border-slate-100 bg-slate-50">
+                                    <button
+                                       onClick={() => {
+                                          setIsClaimsPanelOpen(false);
+                                          onAddClaimClick();
+                                       }}
+                                       className="w-full text-center py-2 bg-white border border-slate-200 text-slate-700 font-bold text-[13px] rounded-lg transition-colors hover:bg-slate-100 hover:text-slate-900 flex items-center justify-center gap-2"
+                                    >
+                                       <Plus size={14} /> নতুন দাবি যোগ করুন
+                                    </button>
+                                 </div>
+                              )}
                            </div>
                         </>
                      )}
@@ -169,7 +184,7 @@ export default function ClaimWorkspace({
                            const idx = claims.findIndex((c: any) => c.id === selectedClaim.id);
                            if (idx > 0) {
                               setSelectedClaimId(claims[idx - 1].id);
-                              setActiveTab('Evidence');
+                              setActiveTab('EVIDENCE');
                            }
                         }}
                         disabled={claims.findIndex((c: any) => c.id === selectedClaim.id) === 0}
@@ -182,7 +197,7 @@ export default function ClaimWorkspace({
                            const idx = claims.findIndex((c: any) => c.id === selectedClaim.id);
                            if (idx < claims.length - 1) {
                               setSelectedClaimId(claims[idx + 1].id);
-                              setActiveTab('Evidence');
+                              setActiveTab('EVIDENCE');
                            }
                         }}
                         disabled={claims.findIndex((c: any) => c.id === selectedClaim.id) === claims.length - 1}
@@ -195,39 +210,40 @@ export default function ClaimWorkspace({
             </div>
 
             {/* 2. Claim Details Card */}
-            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 mb-4">
-
-               {/* Claim Typography */}
-               <h2 className="text-[16px] xl:text-[18px] font-medium text-slate-700 leading-relaxed mb-6 text-pretty">
-                  <span className="text-slate-300 font-serif mr-1 text-lg">"</span>
-                  {selectedClaim.title}
-                  <span className="text-slate-300 font-serif ml-1 text-lg">"</span>
-               </h2>
-
-               {/* Footer: Author & Stats inline */}
-               <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 mt-auto">
-                  <div className="flex items-center gap-3">
-                     <img src={authorImg} alt={authorName} className="w-8 h-8 rounded-full object-cover shrink-0" />
-                     <div className="flex items-center gap-1.5 text-[13px] text-slate-500">
-                        <span className="font-semibold text-slate-900">{authorName}</span>
-                        <div className="w-3.5 h-3.5 bg-slate-500 text-white rounded-full flex items-center justify-center shrink-0">
-                           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="w-2.5 h-2.5"><path d="M20 6L9 17l-5-5"></path></svg>
+            <div className="bg-white rounded-2xl shadow-sm mb-4 overflow-hidden flex flex-col">
+               <div className="p-5 sm:p-6 flex flex-col flex-1 overflow-hidden bg-white">
+                  <div className="flex mb-5 flex-col xl:flex-row xl:items-center justify-between gap-4 mt-auto">
+                     <div className="flex items-center gap-3">
+                        <img src={authorImg} alt={authorName} className="w-8 h-8 rounded-full object-cover shrink-0" />
+                        <div className="flex items-center gap-1.5 text-[13px] text-slate-500">
+                           <span className="font-semibold text-slate-900">{authorName}</span>
+                           <div className="w-3.5 h-3.5 bg-slate-500 text-white rounded-full flex items-center justify-center shrink-0">
+                              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="w-2.5 h-2.5"><path d="M20 6L9 17l-5-5"></path></svg>
+                           </div>
+                           <span className="ml-1">Added this claim · {dateStr}</span>
                         </div>
-                        <span className="ml-1">Added this claim · {dateStr}</span>
+                     </div>
+
+                     <div className="flex items-center gap-5 text-sm text-slate-700 font-semibold">
+                        <div className="flex items-center gap-1.5" title="তথ্য-প্রমাণ"><FileText size={16} className="text-slate-400" /> <span>{evidenceCount}</span></div>
+                        <div className="flex items-center gap-1.5" title="উৎস"><LinkIcon size={16} className="text-slate-400" /> <span>{sourcesCount}</span></div>
+                        <div className="flex items-center gap-1.5" title="মতামত"><MessageSquare size={16} className="text-slate-400" /> <span>{opinionsCount}</span></div>
+                        <div className="flex items-center gap-1.5" title="আলোচনা"><MessageCircle size={16} className="text-slate-400" /> <span>{discussionsCount}</span></div>
+                        <button className="text-slate-400 ml-2 hover:text-slate-600 transition"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5"><circle cx="12" cy="5" r="1" /><circle cx="12" cy="12" r="1" /><circle cx="12" cy="19" r="1" /></svg></button>
                      </div>
                   </div>
+                  {/* Claim Typography */}
+                  <h2 className="text-[16px] xl:text-[18px] font-medium text-slate-700 leading-relaxed mb-6 text-pretty">
+                     <span className="text-slate-300 font-serif mr-1 text-lg">"</span>
+                     {selectedClaim.title}
+                     <span className="text-slate-300 font-serif ml-1 text-lg">"</span>
+                  </h2>
 
-                  <div className="flex items-center gap-5 text-sm text-slate-700 font-semibold">
-                     <div className="flex items-center gap-1.5" title="তথ্য-প্রমাণ"><FileText size={16} className="text-slate-400" /> <span>{evidenceCount}</span></div>
-                     <div className="flex items-center gap-1.5" title="উৎস"><LinkIcon size={16} className="text-slate-400" /> <span>{sourcesCount}</span></div>
-                     <div className="flex items-center gap-1.5" title="মতামত"><MessageSquare size={16} className="text-slate-400" /> <span>{opinionsCount}</span></div>
-                     <div className="flex items-center gap-1.5" title="আলোচনা"><MessageCircle size={16} className="text-slate-400" /> <span>{discussionsCount}</span></div>
-                     <button className="text-slate-400 ml-2 hover:text-slate-600 transition"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5"><circle cx="12" cy="5" r="1" /><circle cx="12" cy="12" r="1" /><circle cx="12" cy="19" r="1" /></svg></button>
-                  </div>
-               </div>
+                  {/* Footer: Author & Stats inline */}
 
-               {/* Mini Opinion Section (Inline) */}
-               {isAuthenticated && (
+
+                  {/* Mini Opinion Section (Inline) */}
+                  {/* {isAuthenticated && (
                   <div className="mt-6 pt-5 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                      <div className="text-[13px] font-semibold text-slate-600">এই দাবিটি নিয়ে আপনার মতামত কী?</div>
                      <div className="flex flex-wrap items-center gap-2">
@@ -251,90 +267,81 @@ export default function ClaimWorkspace({
                         </button>
                      </div>
                   </div>
-               )}
-            </div>
+               )} */}
+                  {/* Mini Opinion Section (Inline) */}
+                  {/* ... */}
 
-            {/* 3. Sub-Navigation Tabs */}
-            <div className="flex flex-wrap gap-3 mb-6 border-b-2 border-transparent">
-               {[
-                  { id: 'Evidence', label: 'তথ্য-প্রমাণ ও উৎস', icon: <FileText size={16} />, count: evidenceCount + sourcesCount },
-                  { id: 'Opinions', label: 'সবার মতামত', icon: <MessageSquare size={16} />, count: opinionsCount },
-                  { id: 'Discussion', label: 'আলোচনা', icon: <MessageCircle size={16} />, count: discussionsCount },
-               ].map(tab => (
+               </div>
+
+               {/* Tabs */}
+               <div className="flex items-center gap-6 border-t border-b border-slate-100 px-5 sm:px-6 pt-2 bg-white">
                   <button
-                     key={tab.id}
-                     onClick={() => setActiveTab(tab.id as any)}
-                     className={`px-5 py-2 text-sm font-semibold whitespace-nowrap rounded-full flex items-center gap-2.5 transition-all border ${activeTab === tab.id
-                        ? 'border-slate-600 bg-slate-50/40 text-slate-600'
-                        : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50'
-                        }`}
+                     onClick={() => setActiveTab('EVIDENCE')}
+                     className={`pb-3 text-sm font-bold transition-colors relative ${activeTab === 'EVIDENCE' ? 'text-slate-900' : 'text-slate-500 hover:text-slate-700'}`}
                   >
-                     {React.cloneElement(tab.icon as any, { className: activeTab === tab.id ? 'text-slate-600' : 'text-slate-400' })}
-                     {tab.label}
-                     <span className={`w-5 h-5 flex items-center justify-center rounded-full text-[11px] font-bold ${activeTab === tab.id ? 'bg-slate-600 text-white' : 'bg-slate-100 text-slate-500'}`}>
-                        {tab.count}
-                     </span>
+                     Claim Evidence & Sources
+                     {activeTab === 'EVIDENCE' && <div className="absolute -bottom-[1px] left-0 right-0 h-[2px] bg-slate-900 rounded-t-full" />}
                   </button>
-               ))}
-            </div>
+                  <button
+                     onClick={() => setActiveTab('DISCUSSION')}
+                     className={`pb-3 text-sm font-bold transition-colors relative ${activeTab === 'DISCUSSION' ? 'text-slate-900' : 'text-slate-500 hover:text-slate-700'}`}
+                  >
+                     আলোচনা
+                     {activeTab === 'DISCUSSION' && <div className="absolute -bottom-[1px] left-0 right-0 h-[2px] bg-slate-900 rounded-t-full" />}
+                  </button>
+               </div>
 
-            {/* 4. Tab Content */}
-            <div className="pt-4">
-               {activeTab === 'Evidence' && (
-                  <div>
-                     {isCaseCreator && !isAddEvidenceOpen && (
-                        <div
-                           onClick={() => setIsAddEvidenceOpen(true)}
-                           className="mb-6 flex items-center gap-3 bg-white border border-slate-200 p-2 sm:p-2.5 rounded-2xl cursor-text shadow-sm hover:border-slate-300 hover:shadow transition group"
-                        >
-                           <img src={authorImg} alt="User" className="w-9 h-9 rounded-full object-cover shrink-0 ml-1" />
-                           <div className="flex-1 text-[13px] sm:text-[14px] text-slate-400 font-medium bg-transparent outline-none truncate">
-                              আপনার কাছে কি কোনো প্রমাণ বা তথ্য আছে? এখানে পোস্ট করুন...
-                           </div>
-                           <div className="flex items-center gap-4 pr-1 shrink-0">
-                              <div className="flex items-center gap-3 text-slate-400">
-                                 <button className="hover:text-slate-600 transition"><Camera size={18} /></button>
-                                 <button className="hover:text-slate-600 transition"><LinkIcon size={18} /></button>
+               {/* Tab Content */}
+               <div className="bg-white pb-2">
+                  {activeTab === 'EVIDENCE' && (
+                     <div className="pt-4">
+                        {isAuthenticated && !isAddEvidenceOpen && (
+                           <div className="px-5 sm:px-6 mb-5">
+                              <div
+                                 onClick={() => setIsAddEvidenceOpen(true)}
+                                 className="flex items-center gap-2.5 bg-white border border-slate-200 p-1.5 sm:p-2 rounded-xl cursor-text shadow-sm hover:border-slate-300 hover:shadow transition group"
+                              >
+                                 <img src={authorImg} alt="User" className="w-7 h-7 rounded-full object-cover shrink-0 ml-1" />
+                                 <div className="flex-1 text-[12px] sm:text-[13px] text-slate-400 font-medium bg-transparent outline-none truncate">
+                                    আপনার কাছে কি কোনো প্রমাণ বা তথ্য আছে? এখানে পোস্ট করুন...
+                                 </div>
+                                 <div className="flex items-center gap-3 pr-1 shrink-0">
+                                    <div className="flex items-center gap-2 text-slate-400">
+                                       <button className="hover:text-slate-600 transition"><Camera size={16} /></button>
+                                       <button className="hover:text-slate-600 transition"><LinkIcon size={16} /></button>
+                                    </div>
+                                    <button className="bg-slate-600 hover:bg-slate-700 text-white font-semibold text-[12px] px-4 py-1.5 rounded-lg transition shadow-sm">
+                                       Post
+                                    </button>
+                                 </div>
                               </div>
-                              <button className="bg-slate-600 hover:bg-slate-700 text-white font-semibold text-[14px] px-6 py-2 rounded-xl transition shadow-sm">
-                                 Post
-                              </button>
                            </div>
-                        </div>
-                     )}
+                        )}
 
-                     {isCaseCreator && (
-                        <AddEvidenceForm
-                           isOpen={isAddEvidenceOpen}
-                           onClose={() => setIsAddEvidenceOpen(false)}
-                           caseId={caseData.id}
-                           claimId={selectedClaim.id}
+                        {isAuthenticated && isAddEvidenceOpen && (
+                           <div className="px-5 sm:px-6 mb-4">
+                              <AddEvidenceForm
+                                 isOpen={isAddEvidenceOpen}
+                                 onClose={() => setIsAddEvidenceOpen(false)}
+                                 caseId={caseData.id}
+                                 claimId={selectedClaim.id}
+                              />
+                           </div>
+                        )}
+                        <EvidenceSection
+                           caseData={{ ...caseData, claims: [selectedClaim] } as any}
+                           onAddEvidenceClick={() => setIsAddEvidenceOpen(true)}
+                           hideFilter={true}
                         />
-                     )}
-
-                     <EvidenceSection caseData={{ ...caseData, claims: [selectedClaim] } as any} onAddEvidenceClick={() => setIsAddEvidenceOpen(true)} />
-                  </div>
-               )}
-
-               {activeTab === 'Opinions' && (
-                  <AssessmentPoll claimId={selectedClaim.id} />
-               )}
-
-               {activeTab === 'Discussion' && (
-                  <div className="bg-white rounded-2xl border border-slate-200 p-5 sm:p-6 shadow-sm">
-                     <div className="flex items-center gap-3 mb-6">
-                        <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center text-slate-600">
-                           <MessageCircle size={20} />
-                        </div>
-                        <div>
-                           <h3 className="font-bold text-slate-900">আলোচনা ({discussionsCount}) <StaticTestBadge label="TEST FEATURE" /></h3>
-                           <p className="text-xs text-slate-500">এই দাবি নিয়ে আলোচনা করুন...</p>
-                        </div>
                      </div>
+                  )}
 
-                     <DiscussionComments targetType="CLAIM" targetId={selectedClaim.id} />
-                  </div>
-               )}
+                  {activeTab === 'DISCUSSION' && (
+                     <div className="p-5 sm:p-6">
+                        <DiscussionComments targetType="CLAIM" targetId={selectedClaim.id} />
+                     </div>
+                  )}
+               </div>
             </div>
          </div>
       </div>

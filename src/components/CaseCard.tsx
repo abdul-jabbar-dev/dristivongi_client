@@ -3,11 +3,13 @@ import React, { useRef, useState } from 'react';
 import Link from 'next/link';
 import { MoreHorizontal, Users, MessageCircle, Heart, Share2, Bookmark, ArrowRight, Play, FileText, Image as ImageIcon, X } from 'lucide-react';
 import { TCaseType } from '@/redux/feature/case/case.type';
-import { resolveMediaUrl, formatBengaliTime, toBengaliNumber, removeHashtags , getAvatarUrl} from '@/lib/utils';
+import { resolveMediaUrl, formatBengaliTime, toBengaliNumber, removeHashtags, getAvatarUrl } from '@/lib/utils';
 import DiscussionComments from '@/components/shared/DiscussionComments';
 import MarkdownRenderer from '@/components/shared/MarkdownRenderer';
 import LightboxModal from '@/components/shared/LightboxModal';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, ThumbsUp, ThumbsDown } from 'lucide-react';
+import { useSubmitCaseReactionMutation } from '@/redux/feature/case/case.reducer';
+import { useAppSelector } from '@/redux/hooks';
 
 const CardMediaPreview = ({ media, resolveMediaUrl }: { media: any, resolveMediaUrl: any }) => {
    if (media.label === 'Photo') {
@@ -55,22 +57,27 @@ export default function CaseCard({ c }: { c: TCaseType }) {
    const [expansionLevel, setExpansionLevel] = useState(0);
    const [contentScrollHeight, setContentScrollHeight] = useState(0);
    const contentRef = useRef<HTMLDivElement>(null);
+   const [submitReaction] = useSubmitCaseReactionMutation();
+   const user = useAppSelector((state) => state.auth.user);
 
    React.useEffect(() => {
       if (contentRef.current) {
          setContentScrollHeight(contentRef.current.scrollHeight);
       }
    }, [c.titleHtml, c.title]);
-   const claimCount = c._count?.claims ?? c.claims?.length ?? 0;
-   const discussionCount = c._count?.discussions ?? c.discussions?.length ?? 0;
+   const claimCount = c.stats?.claimCount ?? c._count?.claims ?? c.claims?.length ?? 0;
+   const discussionCount = c.stats?.discussionCount ?? c._count?.discussions ?? c.discussions?.length ?? 0;
 
    // Calculate evidence and sources from claims
-   let evidenceCount = 0;
-   let sourcesCount = 0;
-   c.claims?.forEach(claim => {
-      evidenceCount += claim.evidence?.length || 0;
-      sourcesCount += claim.sources?.length || 0;
-   });
+   let evidenceCount = c.stats?.evidenceCount ?? 0;
+   let sourcesCount = c.stats?.sourceCount ?? 0;
+
+   if (!c.stats) {
+      c.claims?.forEach(claim => {
+         evidenceCount += claim.evidence?.length || 0;
+         sourcesCount += claim.sources?.length || 0;
+      });
+   }
 
    // Extract all media from case and claims
    const allMedias: { type: string, url: string, label: string }[] = [];
@@ -123,22 +130,21 @@ export default function CaseCard({ c }: { c: TCaseType }) {
 
          {/* Title */}
          <div className="mb-4 relative">
-            <div 
-               ref={contentRef} 
-               className={`text-[15px] text-slate-800 leading-relaxed overflow-hidden transition-all duration-300 ${
-                  expansionLevel === 0 ? 'max-h-[400px]' : 
-                  expansionLevel === 1 ? 'max-h-[800px]' : 
-                  ''
-               }`}
+            <div
+               ref={contentRef}
+               className={`text-[15px] text-slate-800 leading-relaxed overflow-hidden transition-all duration-300 ${expansionLevel === 0 ? 'max-h-[400px]' :
+                     expansionLevel === 1 ? 'max-h-[800px]' :
+                        ''
+                  }`}
             >
                <MarkdownRenderer content={removeHashtags(c.titleHtml || c.title, c.tags?.map(t => t.tag.name) || [])} />
             </div>
-            
+
             {/* Show "See more" if we are at Level 0 and content is > 400px */}
             {expansionLevel === 0 && contentScrollHeight > 400 && (
                <>
                   <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-white to-transparent pointer-events-none" />
-                  <button 
+                  <button
                      onClick={() => setExpansionLevel(1)}
                      className="mt-1 text-sm font-semibold text-slate-600 hover:text-slate-800 transition flex items-center gap-1 relative z-10"
                   >
@@ -151,7 +157,7 @@ export default function CaseCard({ c }: { c: TCaseType }) {
             {expansionLevel === 1 && contentScrollHeight > 800 && (
                <>
                   <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-white to-transparent pointer-events-none" />
-                  <Link 
+                  <Link
                      href={`/case/${c.id}`}
                      className="mt-1 text-sm font-semibold text-slate-600 hover:text-slate-800 transition flex items-center gap-1 relative z-10"
                   >
@@ -161,16 +167,7 @@ export default function CaseCard({ c }: { c: TCaseType }) {
             )}
          </div>
 
-         {/* Stats Row */}
-         <div className="flex items-center gap-2 text-xs font-bold bg-slate-50 rounded-lg p-3  border border-slate-100 text-slate-600 flex-wrap">
-            <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-slate-500"></div>{toBengaliNumber(claimCount)}টি দাবি</div>
-            <span className="text-slate-300">|</span>
-            <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-emerald-500"></div>{toBengaliNumber(evidenceCount)}টি তথ্য-প্রমাণ</div>
-            <span className="text-slate-300">|</span>
-            <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-teal-500"></div>{toBengaliNumber(sourcesCount)}টি উৎস</div>
-            <span className="text-slate-300">|</span>
-            <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-slate-500"></div>{toBengaliNumber(discussionCount)}টি মতামত</div>
-         </div>
+
 
          {/* Main Claim */}
          {c.claims && c.claims.length > 0 && (
@@ -280,7 +277,7 @@ export default function CaseCard({ c }: { c: TCaseType }) {
          {((c as any).tags?.length > 0) && (
             <div className="flex flex-wrap gap-2 items-center mb-3">
                {((c as any).tags as any[]).slice(0, 5).map((caseTag: any) => (
-                  <span 
+                  <span
                      key={caseTag.tag?.id || Math.random()}
                      onClick={(e) => {
                         e.stopPropagation();
@@ -299,26 +296,44 @@ export default function CaseCard({ c }: { c: TCaseType }) {
             </div>
          )}
 
-         {/* Action Bar */}
-         <div className="flex flex-wrap items-center justify-between border-t border-slate-100 pt-3 gap-y-3">
-            <div className="flex items-center gap-4 text-slate-500">
-               <button className="flex items-center gap-1.5 text-[11px] font-bold hover:text-slate-800 transition">
-                  <Heart size={14} /> সমর্থন
-               </button>
-               <button onClick={() => setShowComments(!showComments)} className={`flex items-center gap-1.5 text-[11px] font-bold transition ${showComments ? 'text-slate-600' : 'hover:text-slate-800'}`}>
-                  <MessageCircle size={14} /> মতামত দিন
-               </button>
-               <button className="flex items-center gap-1.5 text-[11px] font-bold hover:text-slate-800 transition">
-                  <Share2 size={14} /> শেয়ার করুন
-               </button>
-               <button className="flex items-center gap-1.5 text-[11px] font-bold hover:text-slate-800 transition">
-                  <Bookmark size={14} /> সংরক্ষণ
-               </button>
-            </div>
+         {/* Reaction Counts & Action Bar */}
+         <div>
+            <div className="flex flex-wrap items-center gap-2 mb-0 text-[11px] text-slate-500 font-medium bg-slate-50 pr-3 py-2 rounded-lg w-fit">
+               {(c.stats?.supportCount ?? c.reaction?.support ?? 0) > 0 && <span className="flex items-center gap-1">👍 {toBengaliNumber(c.stats?.supportCount ?? c.reaction?.support ?? 0)}</span>}
+               {(c.stats?.opposeCount ?? c.reaction?.oppose ?? 0) > 0 && <span className="flex items-center gap-1">👎 {toBengaliNumber(c.stats?.opposeCount ?? c.reaction?.oppose ?? 0)}</span>}
+               {((c.stats?.supportCount ?? c.reaction?.support ?? 0) > 0 || (c.stats?.opposeCount ?? c.reaction?.oppose ?? 0) > 0) && <span className="text-slate-300 mx-1">|</span>}
+               {(claimCount > 0) && <span className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-slate-400"></div> {toBengaliNumber(claimCount)}টি দাবি</span>}
+               {(claimCount > 0) && <span className="text-slate-300">|</span>}
+               {(evidenceCount > 0) && <span className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div> {toBengaliNumber(evidenceCount)}টি তথ্য-প্রমাণ</span>}
+               {(evidenceCount > 0) && <span className="text-slate-300">|</span>}
+               {(sourcesCount > 0) && <span className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-teal-500"></div> {toBengaliNumber(sourcesCount)}টি উৎস</span>}
+               {(sourcesCount > 0) && <span className="text-slate-300">|</span>}
+               {(discussionCount > 0) && <span className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-slate-400"></div> {toBengaliNumber(discussionCount)}টি মতামত</span>}
+            </div> 
+            <div className="flex flex-wrap items-center justify-between border-t border-slate-100 pt-0 gap-y-3">
+               <div className="flex items-center gap-4 text-slate-500">
+                  <button
+                     onClick={() => user && submitReaction({ caseId: c.id, value: c.reaction?.currentUserReaction === 'SUPPORT' ? 'NONE' : 'SUPPORT' })}
+                     className={`flex items-center gap-1.5 text-[12px] font-bold transition ${c.reaction?.currentUserReaction === 'SUPPORT' ? 'text-blue-600' : (user ? 'hover:text-slate-800' : 'cursor-default pointer-events-none')}`}>
+                     {!user ? <span>{toBengaliNumber(c.stats?.supportCount ?? c.reaction?.support ?? 0)}</span> : <ThumbsUp size={16} className={c.reaction?.currentUserReaction === 'SUPPORT' ? 'fill-current' : ''} />} সমর্থন
+                  </button>
+                  <button
+                     onClick={() => user && submitReaction({ caseId: c.id, value: c.reaction?.currentUserReaction === 'OPPOSE' ? 'NONE' : 'OPPOSE' })}
+                     className={`flex items-center gap-1.5 text-[12px] font-bold transition ${c.reaction?.currentUserReaction === 'OPPOSE' ? 'text-red-600' : (user ? 'hover:text-slate-800' : 'cursor-default pointer-events-none')}`}>
+                     {!user ? <span>{toBengaliNumber(c.stats?.opposeCount ?? c.reaction?.oppose ?? 0)}</span> : <ThumbsDown size={16} className={c.reaction?.currentUserReaction === 'OPPOSE' ? 'fill-current' : ''} />} অসমর্থন
+                  </button>
+                  <button onClick={() => setShowComments(!showComments)} className={`flex items-center gap-1.5 text-[12px] font-bold transition ${showComments ? 'text-slate-600' : 'hover:text-slate-800'}`}>
+                     <MessageCircle size={16} /> মতামত দিন
+                  </button>
+                  <button className="flex items-center gap-1.5 text-[12px] font-bold hover:text-slate-800 transition">
+                     <Share2 size={16} /> শেয়ার করুন
+                  </button>
+               </div>
 
-            <Link href={`/case/${c.id}`} className="flex items-center gap-1 text-xs font-bold text-slate-600 hover:text-slate-800 transition">
-               সম্পূর্ণ বিষয়টি খুলুন <ArrowRight size={14} />
-            </Link>
+               <Link href={`/case/${c.id}`} className="flex items-center gap-1 text-xs font-bold text-slate-600 hover:text-slate-800 transition">
+                  সম্পূর্ণ বিষয়টি খুলুন <ArrowRight size={14} />
+               </Link>
+            </div>
          </div>
 
          {/* LinkedIn Style Comments Section */}
@@ -328,10 +343,10 @@ export default function CaseCard({ c }: { c: TCaseType }) {
 
          {/* Lightbox Modal */}
          {previewIndex !== null && validMedias[previewIndex] && (
-            <LightboxModal 
-               medias={validMedias} 
-               initialIndex={previewIndex} 
-               onClose={() => setPreviewIndex(null)} 
+            <LightboxModal
+               medias={validMedias}
+               initialIndex={previewIndex}
+               onClose={() => setPreviewIndex(null)}
                contextInfo={{
                   authorName: c.author?.fullName || c.author?.userName,
                   authorAvatar: resolveMediaUrl(c.author?.userProfile?.profilePicture || c.author?.avatar),

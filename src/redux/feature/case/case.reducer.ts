@@ -9,18 +9,42 @@ export const CASE_Api = createApi({
     baseQuery: baseQueryWithReauth,
     tagTypes: ['Case', 'CaseList', 'Assessment', 'EvidenceValidation'],
     endpoints: (builder) => ({
-        newsFeed: builder.query<{ data: TCaseType[] }, { tag?: string, author?: string } | void>({
+        newsFeed: builder.query<{ data: TCaseType[], nextPage: number | null }, { tag?: string, author?: string, page?: number } | void>({
             query: (params) => {
                 let url = `case/get_case/news_feed`;
                 if (params) {
                     const queryParams = new URLSearchParams();
                     if (params.tag) queryParams.append('tag', params.tag);
                     if (params.author) queryParams.append('author', params.author);
+                    if (params.page) queryParams.append('page', params.page.toString());
                     if (queryParams.toString()) {
                         url += `?${queryParams.toString()}`;
                     }
                 }
                 return url;
+            },
+            serializeQueryArgs: ({ queryArgs }) => {
+                const { page, ...rest } = queryArgs || {};
+                return rest;
+            },
+            merge: (currentCache, newItems) => {
+                if (newItems.data) {
+                    currentCache.data.push(...newItems.data);
+                }
+                currentCache.nextPage = newItems.nextPage;
+            },
+            forceRefetch({ currentArg, previousArg }) {
+                return currentArg?.page !== previousArg?.page;
+            },
+            transformResponse: (response: any) => {
+                const nextPage = response?.data?.nextPage || null;
+                if (response?.data?.data) {
+                    return { data: response.data.data, nextPage };
+                }
+                if (response?.data?.items) {
+                    return { data: response.data.items, nextPage };
+                }
+                return { data: response?.data || [], nextPage };
             },
             providesTags: ['CaseList'],
         }),
@@ -70,6 +94,40 @@ export const CASE_Api = createApi({
                 method: 'POST',
                 body: data,
             }),
+            async onQueryStarted({ claimId, data }, { dispatch, queryFulfilled }) {
+                const patchResult = dispatch(
+                    CASE_Api.util.updateQueryData('getAssessments', claimId, (draft: any) => {
+                        if (draft.data) {
+                            const prevVote = draft.data.currentUserPosition;
+                            
+                            // Remove previous vote count
+                            if (prevVote === 'SUPPORT') draft.data.support = Math.max(0, (draft.data.support || 0) - 1);
+                            if (prevVote === 'NEUTRAL') draft.data.neutral = Math.max(0, (draft.data.neutral || 0) - 1);
+                            if (prevVote === 'OPPOSITION') draft.data.opposition = Math.max(0, (draft.data.opposition || 0) - 1);
+                            
+                            // Determine new vote category based on choice
+                            let newVote = null;
+                            const choice = data.assessment;
+                            if (['FULLY_AGREE', 'MOSTLY_AGREE', 'PARTIALLY_AGREE'].includes(choice)) newVote = 'SUPPORT';
+                            else if (['PARTIALLY_DISAGREE', 'MOSTLY_DISAGREE', 'COMPLETELY_DISAGREE'].includes(choice)) newVote = 'OPPOSITION';
+                            else if (['NEED_MORE_INFO', 'NEUTRAL', 'MIXED_FEELINGS'].includes(choice)) newVote = 'NEUTRAL';
+                            
+                            // Add new vote count
+                            if (newVote === 'SUPPORT') draft.data.support = (draft.data.support || 0) + 1;
+                            if (newVote === 'NEUTRAL') draft.data.neutral = (draft.data.neutral || 0) + 1;
+                            if (newVote === 'OPPOSITION') draft.data.opposition = (draft.data.opposition || 0) + 1;
+                            
+                            draft.data.currentUserPosition = newVote;
+                            draft.data.total = (draft.data.support || 0) + (draft.data.neutral || 0) + (draft.data.opposition || 0);
+                        }
+                    })
+                );
+                try {
+                    await queryFulfilled;
+                } catch {
+                    patchResult.undo();
+                }
+            },
             invalidatesTags: (result, error, arg) => [{ type: 'Assessment', id: arg.claimId }],
         }),
         importUrl: builder.mutation<any, { url: string }>({
@@ -85,6 +143,31 @@ export const CASE_Api = createApi({
                 method: "POST",
                 body: { value }
             }),
+            async onQueryStarted({ evidenceId, value }, { dispatch, queryFulfilled }) {
+                const patchResult = dispatch(
+                    CASE_Api.util.updateQueryData('getEvidenceValidation', evidenceId, (draft: any) => {
+                        if (draft.data) {
+                            const prevVote = draft.data.currentUserVote;
+                            if (prevVote === 'VALID') draft.data.valid = Math.max(0, (draft.data.valid || 0) - 1);
+                            if (prevVote === 'INVALID') draft.data.invalid = Math.max(0, (draft.data.invalid || 0) - 1);
+                            
+                            const newVote = value === 'NONE' ? null : value;
+                            if (newVote === 'VALID') draft.data.valid = (draft.data.valid || 0) + 1;
+                            if (newVote === 'INVALID') draft.data.invalid = (draft.data.invalid || 0) + 1;
+                            
+                            draft.data.currentUserVote = newVote;
+                            draft.data.total = (draft.data.valid || 0) + (draft.data.invalid || 0);
+                            draft.data.validPercentage = draft.data.total > 0 ? (draft.data.valid / draft.data.total) * 100 : 0;
+                            draft.data.invalidPercentage = draft.data.total > 0 ? (draft.data.invalid / draft.data.total) * 100 : 0;
+                        }
+                    })
+                );
+                try {
+                    await queryFulfilled;
+                } catch {
+                    patchResult.undo();
+                }
+            },
             invalidatesTags: (result, error, { evidenceId }) => [
                 { type: 'EvidenceValidation', id: evidenceId }
             ]
@@ -94,8 +177,67 @@ export const CASE_Api = createApi({
             providesTags: (result, error, evidenceId) => [
                 { type: 'EvidenceValidation', id: evidenceId }
             ]
+        }),
+        submitCaseReaction: builder.mutation<any, { caseId: string, value: string }>({
+            query: ({ caseId, value }) => ({
+                url: `case/${caseId}/reaction`,
+                method: 'POST',
+                body: { value },
+            }),
+            async onQueryStarted({ caseId, value }, { dispatch, queryFulfilled, getState }) {
+                const patchResultDetails = dispatch(
+                    CASE_Api.util.updateQueryData('caseDetails', caseId, (draft) => {
+                        if (draft.data) {
+                            if (!draft.data.reaction) {
+                                draft.data.reaction = { support: 0, oppose: 0, total: 0, currentUserReaction: null };
+                            }
+                            const prevReaction = draft.data.reaction.currentUserReaction;
+                            if (prevReaction === "SUPPORT") draft.data.reaction.support--;
+                            if (prevReaction === "OPPOSE") draft.data.reaction.oppose--;
+                            
+                            const newReaction = value === "NONE" ? null : value as "SUPPORT" | "OPPOSE";
+                            if (newReaction === "SUPPORT") draft.data.reaction.support++;
+                            if (newReaction === "OPPOSE") draft.data.reaction.oppose++;
+                            
+                            draft.data.reaction.currentUserReaction = newReaction;
+                            draft.data.reaction.total = draft.data.reaction.support + draft.data.reaction.oppose;
+                        }
+                    })
+                );
+
+                const patchResultFeed = dispatch(
+                    CASE_Api.util.updateQueryData('newsFeed', undefined as any, (draft) => {
+                        if (draft.data) {
+                            const caseItem = draft.data.find(c => c.id === caseId);
+                            if (caseItem) {
+                                if (!caseItem.reaction) {
+                                    caseItem.reaction = { support: 0, oppose: 0, total: 0, currentUserReaction: null };
+                                }
+                                const prevReaction = caseItem.reaction.currentUserReaction;
+                                if (prevReaction === "SUPPORT") caseItem.reaction.support--;
+                                if (prevReaction === "OPPOSE") caseItem.reaction.oppose--;
+                                
+                                const newReaction = value === "NONE" ? null : value as "SUPPORT" | "OPPOSE";
+                                if (newReaction === "SUPPORT") caseItem.reaction.support++;
+                                if (newReaction === "OPPOSE") caseItem.reaction.oppose++;
+                                
+                                caseItem.reaction.currentUserReaction = newReaction;
+                                caseItem.reaction.total = caseItem.reaction.support + caseItem.reaction.oppose;
+                            }
+                        }
+                    })
+                );
+
+                try {
+                    await queryFulfilled;
+                } catch {
+                    patchResultDetails.undo();
+                    patchResultFeed.undo();
+                }
+            },
+            invalidatesTags: (result, error, arg) => [{ type: 'Case', id: arg.caseId }, 'CaseList'],
         })
     }),
 })
 
-export const { useNewsFeedQuery, useCaseDetailsQuery, useCreateCaseMutation, useCreateClaimMutation, useAddEvidenceMutation, useAddCaseEvidenceMutation, useGetAssessmentsQuery, useSubmitAssessmentMutation, useImportUrlMutation, useSubmitEvidenceValidationMutation, useGetEvidenceValidationQuery } = CASE_Api
+export const { useNewsFeedQuery, useCaseDetailsQuery, useCreateCaseMutation, useCreateClaimMutation, useAddEvidenceMutation, useAddCaseEvidenceMutation, useGetAssessmentsQuery, useSubmitAssessmentMutation, useImportUrlMutation, useSubmitEvidenceValidationMutation, useGetEvidenceValidationQuery, useSubmitCaseReactionMutation } = CASE_Api

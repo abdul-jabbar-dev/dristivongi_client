@@ -1,5 +1,5 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { Plus, FileText, Loader2, Video, Image as ImageIcon, Smile } from 'lucide-react';
 import CaseCard from '@/components/CaseCard';
@@ -18,9 +18,22 @@ export default function NewsfeedPage() {
   const searchParams = useSearchParams();
   const tagParam = searchParams.get('tag') || undefined;
 
-  const { data: responseData, isLoading, isError, error, refetch } = useNewsFeedQuery(tagParam ? { tag: tagParam } : undefined);
+  const [page, setPage] = useState(1);
+  const { data: responseData, isLoading, isFetching, isError, error, refetch } = useNewsFeedQuery({ tag: tagParam, page });
   const [activeTab, setActiveTab] = useState('আপনার জন্য');
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const observerRef = useRef<IntersectionObserver | null>(null);
+  const lastElementRef = useCallback((node: HTMLDivElement | null) => {
+    if (isLoading || isFetching) return;
+    if (observerRef.current) observerRef.current.disconnect();
+    observerRef.current = new IntersectionObserver(entries => {
+      if (entries[0].isIntersecting && responseData?.nextPage) {
+        setPage(prev => prev + 1);
+      }
+    });
+    if (node) observerRef.current.observe(node);
+  }, [isLoading, isFetching, responseData?.nextPage]);
   const user = useSelector((state: RootState) => state.auth.user);
   const { isAuthenticated } = useSelector((state: RootState) => state.auth);
   
@@ -29,7 +42,7 @@ export default function NewsfeedPage() {
   
   const userImg = getAvatarUrl(mergedUser);
 
-  const casesList: TCaseType[] = responseData?.data || [];
+  const casesList: TCaseType[] = (responseData?.data as any) || [];
 
   const tabs = ['আপনার জন্য', 'সর্বশেষ', 'অনুসরণ করা', 'কাছাকাছি'];
 
@@ -117,17 +130,27 @@ export default function NewsfeedPage() {
             )}
 
             {!isLoading && !isError && casesList.length > 0 && (
-              <div key={`${tagParam || 'all'}-${activeTab}`} className="grid grid-cols-1 gap-6">
-                {casesList.map((c: TCaseType, index: number) => (
-                  <div
-                    key={c.id}
-                    className="animate-in fade-in slide-in-from-bottom-4 duration-500 fill-mode-both"
-                    style={{ animationDelay: `${index * 100}ms` }}
-                  >
-                    <CaseCard c={c} />
+              <>
+                <div key={`${tagParam || 'all'}-${activeTab}`} className="grid grid-cols-1 gap-6">
+                  {casesList.map((c: TCaseType, index: number) => {
+                    const isLast = index === casesList.length - 1;
+                    return (
+                      <div
+                        key={`${c.id}-${index}`}
+                        ref={isLast ? lastElementRef : null}
+                        className="animate-in fade-in slide-in-from-bottom-4 duration-500 fill-mode-both"
+                      >
+                        <CaseCard c={c} />
+                      </div>
+                    );
+                  })}
+                </div>
+                {isFetching && !isLoading && (
+                  <div className="flex items-center justify-center py-6">
+                    <Loader2 className="w-8 h-8 text-slate-400 animate-spin" />
                   </div>
-                ))}
-              </div>
+                )}
+              </>
             )}
 
           </div>

@@ -20,7 +20,7 @@ export default function EvidenceValidation({ evidenceId }: { evidenceId: string 
         currentUserVote: null
     };
 
-    const handleVote = (value: 'VALID' | 'INVALID') => {
+    const handleVote = (value: 'VALID' | 'INVALID' | 'NONE') => {
         if (!isAuthenticated) {
             // In a real app, trigger login modal. Here we might just alert.
             alert("Please log in to vote.");
@@ -31,38 +31,40 @@ export default function EvidenceValidation({ evidenceId }: { evidenceId: string 
 
     return (
         <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between">
-            <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">তথ্য-প্রমাণ যাচাই</span>
+            <span className="text-[11px] font-bold text-slate-400 tracking-wider">ফ্যাক্ট-চেকিং </span>
             
             {isAuthenticated ? (
                 <div className="flex items-center gap-1 bg-slate-50 rounded-lg p-0.5 border border-slate-100">
                     <button
-                        onClick={() => handleVote('VALID')}
+                        onClick={() => handleVote(validationData.currentUserVote === 'VALID' ? 'NONE' : 'VALID')}
                         disabled={isSubmitting}
-                        title="Mark as valid"
-                        className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold transition-all ${
+                        title="সত্য তথ্য"
+                        className={`flex cursor-pointer  items-center gap-1.5 px-3 py-1 rounded-md text-[11px] font-bold transition-all ${
                             validationData.currentUserVote === 'VALID' 
-                            ? 'bg-emerald-500 text-white shadow-sm' 
-                            : 'text-slate-500 hover:text-emerald-600 hover:bg-slate-100'
-                        }`}
+                            ? 'bg-white text-emerald-600   ' 
+                            : 'text-slate-500 hover:text-emerald-600 hover:bg-white/60'
+                        } ${validationData.currentUserVote === 'INVALID' ? 'opacity-80 grayscale' : ''}`}
                     >
                         <Check size={14} strokeWidth={validationData.currentUserVote === 'VALID' ? 3 : 2} /> 
-                        {validationData.valid || 0}
+                        সত্য
+                        <span className={`ml-1 px-1.5 py-0.5 rounded text-[10px] ${validationData.currentUserVote === 'VALID' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600'}`}>{validationData.valid || 0}</span>
                     </button>
 
-                    <span className="w-px h-3 bg-slate-200"></span>
+                    <span className={`w-px h-3 bg-slate-200 mx-0.5 ${validationData.currentUserVote ? 'opacity-40' : ''}`}></span>
 
                     <button
-                        onClick={() => handleVote('INVALID')}
+                        onClick={() => handleVote(validationData.currentUserVote === 'INVALID' ? 'NONE' : 'INVALID')}
                         disabled={isSubmitting}
-                        title="Mark as invalid"
-                        className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold transition-all ${
+                        title="মিথ্যা বা প্রোপাগান্ডা"
+                        className={`flex  cursor-pointer items-center gap-1.5 px-3 py-1 rounded-md text-[11px] font-bold transition-all ${
                             validationData.currentUserVote === 'INVALID' 
-                            ? 'bg-rose-500 text-white shadow-sm' 
-                            : 'text-slate-500 hover:text-rose-600 hover:bg-slate-100'
-                        }`}
+                            ? 'bg-white text-rose-600 ' 
+                            : 'text-slate-500 hover:text-rose-600 hover:bg-white/60'
+                        } ${validationData.currentUserVote === 'VALID' ? 'opacity-80 grayscale' : ''}`}
                     >
                         <X size={14} strokeWidth={validationData.currentUserVote === 'INVALID' ? 3 : 2} /> 
-                        {validationData.invalid || 0}
+                        প্রোপাগান্ডা 
+                        <span className={`ml-1 px-1.5 py-0.5 rounded text-[10px] ${validationData.currentUserVote === 'INVALID' ? 'bg-rose-100 text-rose-700' : 'bg-slate-200 text-slate-600'}`}>{validationData.invalid || 0}</span>
                     </button>
                 </div>
             ) : (

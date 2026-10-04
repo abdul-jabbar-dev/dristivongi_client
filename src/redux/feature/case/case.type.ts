@@ -89,4 +89,18 @@ export type TCaseType = {
     claims: number;
     discussions: number;
   };
+  reaction?: {
+    support: number;
+    oppose: number;
+    total: number;
+    currentUserReaction: "SUPPORT" | "OPPOSE" | null;
+  };
+  stats?: {
+    supportCount: number;
+    opposeCount: number;
+    claimCount?: number;
+    discussionCount?: number;
+    evidenceCount?: number;
+    sourceCount?: number;
+  };
 };

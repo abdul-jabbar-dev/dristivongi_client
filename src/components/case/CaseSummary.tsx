@@ -21,26 +21,30 @@ export default function CaseSummary({
   const evidenceTotal = counts.evidence || 8;
   const opinionsTotal = counts.opinions || 24;
 
-  const relatedCases = [
-    {
-      title: 'ঢাকা মেট্রোরেল নির্মাণ এবং যানজট',
-      opinions: 28,
-      evidence: 12,
-      img: 'data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='800' height='400' viewBox='0 0 800 400'%3E%3Crect width='800' height='400' fill='%23f1f5f9'/%3E%3Ctext x='50%25' y='50%25' font-family='sans-serif' font-size='20' fill='%2394a3b8' text-anchor='middle' dy='.3em'%3ENo Image Available%3C/text%3E%3C/svg%3E'
-    },
-    {
-      title: 'বায়ুদূষণ ও নির্মাণকাজের প্রভাব',
-      opinions: 14,
-      evidence: 6,
-      img: 'data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='800' height='400' viewBox='0 0 800 400'%3E%3Crect width='800' height='400' fill='%23f1f5f9'/%3E%3Ctext x='50%25' y='50%25' font-family='sans-serif' font-size='20' fill='%2394a3b8' text-anchor='middle' dy='.3em'%3ENo Image Available%3C/text%3E%3C/svg%3E'
-    },
-    {
-      title: 'রাজধানীর সড়ক প্রশস্তকরণ প্রকল্প',
-      opinions: 9,
-      evidence: 4,
-      img: 'data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='800' height='400' viewBox='0 0 800 400'%3E%3Crect width='800' height='400' fill='%23f1f5f9'/%3E%3Ctext x='50%25' y='50%25' font-family='sans-serif' font-size='20' fill='%2394a3b8' text-anchor='middle' dy='.3em'%3ENo Image Available%3C/text%3E%3C/svg%3E'
-    }
-  ];
+  const { data: newsFeedData } = useNewsFeedQuery();
+
+  const relatedCases = newsFeedData?.data
+    ?.filter((c) => c.id !== caseData.id)
+    ?.slice(0, 3)
+    ?.map((c) => {
+      const opinions = c.claims?.reduce((acc: number, claim: any) => acc + (claim.assessments?.length || 0), 0) || 0;
+      let evidence = 0;
+      c.claims?.forEach((claim: any) => {
+        evidence += claim.evidence?.length || 0;
+      });
+      
+      const img = c.medias?.[0]?.media?.url 
+         ? resolveMediaUrl(c.medias[0].media.url) 
+         : `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='800' height='400' viewBox='0 0 800 400'%3E%3Crect width='800' height='400' fill='%23f1f5f9'/%3E%3Ctext x='50%25' y='50%25' font-family='sans-serif' font-size='20' fill='%2394a3b8' text-anchor='middle' dy='.3em'%3ENo Image Available%3C/text%3E%3C/svg%3E`;
+
+      return {
+        id: c.id,
+        title: c.title.replace(/<[^>]*>?/gm, ''),
+        opinions,
+        evidence,
+        img
+      };
+    }) || [];
 
   return (
     <div className="space-y-5">

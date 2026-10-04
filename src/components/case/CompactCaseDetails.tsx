@@ -1,10 +1,14 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Bookmark, Share2, MapPin, Globe, Images, Plus, FileText, Camera, Link as LinkIcon, MessageSquare, MessageCircle, Info } from 'lucide-react';
 import { resolveMediaUrl, removeHashtags, formatBengaliTime , getAvatarUrl} from '@/lib/utils';
 import { TCaseType } from '@/redux/feature/case/case.type';
 import MarkdownRenderer from '@/components/shared/MarkdownRenderer';
 import EvidenceSection from '@/components/case/EvidenceSection';
 import MediaGrid from '@/components/shared/MediaGrid';
+import DiscussionComments from '@/components/shared/DiscussionComments';
+import { ThumbsUp, ThumbsDown } from 'lucide-react';
+import { useSubmitCaseReactionMutation } from '@/redux/feature/case/case.reducer';
+import { toBengaliNumber } from '@/lib/utils';
 
 export default function CompactCaseDetails({ 
   caseData,
@@ -17,6 +21,7 @@ export default function CompactCaseDetails({
   isCreator?: boolean,
   onAddEvidenceClick?: () => void
 }) {
+  const [activeTab, setActiveTab] = useState<'EVIDENCE' | 'DISCUSSION'>('EVIDENCE');
   const dateObj = caseData.createdAt ? new Date(caseData.createdAt) : new Date();
   const dateStr = dateObj.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
   const authorName = (caseData as any).author?.fullName || 'Tanvir Hasan';
@@ -26,6 +31,7 @@ export default function CompactCaseDetails({
   const bannerImg = resolveMediaUrl((caseData as any).medias?.[0]?.media?.url);
   const categoryName = (caseData as any).category?.name || '';
   const locationName = caseData.location || 'Dhaka, Bangladesh';
+  const [submitReaction] = useSubmitCaseReactionMutation();
 
   const caseMedias = ((caseData as any).medias || []).map((m: any) => ({
     url: m.media?.url,
@@ -62,14 +68,6 @@ export default function CompactCaseDetails({
 
             {/* Right: Stats and Button */}
             <div className="flex flex-wrap items-center gap-4 self-start xl:self-auto">
-              <div className="flex gap-4">
-                <div className="flex items-center gap-1.5 text-slate-500 font-semibold" title="Claims"><FileText size={14}/><span className="text-slate-900 text-sm">{counts.claims}</span></div>
-                <div className="flex items-center gap-1.5 text-emerald-600 font-semibold" title="Evidence"><Camera size={14}/><span className="text-slate-900 text-sm">{counts.evidence}</span></div>
-                <div className="flex items-center gap-1.5 text-amber-500 font-semibold" title="Sources"><LinkIcon size={14}/><span className="text-slate-900 text-sm">{counts.sources}</span></div>
-                <div className="flex items-center gap-1.5 text-purple-500 font-semibold" title="Opinions"><MessageSquare size={14}/><span className="text-slate-900 text-sm">{counts.opinions}</span></div>
-                <div className="flex items-center gap-1.5 text-rose-500 font-semibold" title="Discussions"><MessageCircle size={14}/><span className="text-slate-900 text-sm">{counts.discussion}</span></div>
-              </div>
-
               {isCreator && (
                 <button 
                   onClick={onAddEvidenceClick}
@@ -105,44 +103,112 @@ export default function CompactCaseDetails({
                 />
              </div>
           )}
-          {/* Hashtags */}
-          {((caseData as any).tags?.length > 0) && (
-             <div className="flex flex-wrap gap-3 items-center">
-                {(caseData as any).tags.map((caseTag: any) => (
-                   <span 
-                      key={caseTag.tag?.id || Math.random()}
-                      onClick={(e) => {
-                         e.stopPropagation();
-                         window.location.href = `/explore/hashtag/${caseTag.tag.normalizedName}`;
-                      }}
-                      className="text-slate-600 text-[14px] font-medium cursor-pointer hover:underline transition"
-                   >
-                      #{caseTag.tag.name}
-                   </span>
-                ))}
-             </div>
-          )}
-        </div>
+           {/* Hashtags */}
+           {((caseData as any).tags?.length > 0) && (
+              <div className="flex flex-wrap gap-3 items-center mb-6">
+                 {(caseData as any).tags.map((caseTag: any) => (
+                    <span 
+                       key={caseTag.tag?.id || Math.random()}
+                       onClick={(e) => {
+                          e.stopPropagation();
+                          window.location.href = `/explore/hashtag/${caseTag.tag.normalizedName}`;
+                       }}
+                       className="text-slate-600 text-[14px] font-medium cursor-pointer hover:underline transition"
+                    >
+                       #{caseTag.tag.name}
+                    </span>
+                 ))}
+              </div>
+           )}
+
+           {/* Reaction Counts & Action Bar */}
+           <div className="mt-auto">
+              <div className="flex flex-wrap items-center gap-2 mb-0 text-[11px] text-slate-500 font-medium bg-slate-50 pr-3 py-2 rounded-lg w-fit">
+                 {(caseData.reaction?.support ?? 0) > 0 && <span className="flex items-center gap-1">👍 {toBengaliNumber(caseData.reaction?.support || 0)}</span>}
+                 {(caseData.reaction?.oppose ?? 0) > 0 && <span className="flex items-center gap-1">👎 {toBengaliNumber(caseData.reaction?.oppose || 0)}</span>}
+                 {((caseData.reaction?.support ?? 0) > 0 || (caseData.reaction?.oppose ?? 0) > 0) && <span className="text-slate-300 mx-1">|</span>}
+                 {(counts.claims > 0) && <span className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-slate-400"></div> {toBengaliNumber(counts.claims)}টি দাবি</span>}
+                 {(counts.claims > 0) && <span className="text-slate-300">|</span>}
+                 {(counts.evidence > 0) && <span className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div> {toBengaliNumber(counts.evidence)}টি তথ্য-প্রমাণ</span>}
+                 {(counts.evidence > 0) && <span className="text-slate-300">|</span>}
+                 {(counts.sources > 0) && <span className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-teal-500"></div> {toBengaliNumber(counts.sources)}টি উৎস</span>}
+                 {(counts.sources > 0) && <span className="text-slate-300">|</span>}
+                 {(counts.opinions > 0) && <span className="flex items-center gap-1.5"><div className="w-1.5 h-1.5 rounded-full bg-slate-400"></div> {toBengaliNumber(counts.opinions)}টি মতামত</span>}
+              </div>
+              <div className="flex flex-wrap items-center justify-between border-t border-slate-100 pt-0 gap-y-3">
+                 <div className="flex items-center gap-5 text-slate-500">
+                    <button 
+                       onClick={() => submitReaction({ caseId: caseData.id, value: caseData.reaction?.currentUserReaction === 'SUPPORT' ? 'NONE' : 'SUPPORT' })}
+                       className={`flex items-center gap-1.5 text-[13px] font-bold transition ${caseData.reaction?.currentUserReaction === 'SUPPORT' ? 'text-blue-600' : 'hover:text-slate-800'}`}>
+                       <ThumbsUp size={18} className={caseData.reaction?.currentUserReaction === 'SUPPORT' ? 'fill-current' : ''} /> সমর্থন
+                    </button>
+                    <button 
+                       onClick={() => submitReaction({ caseId: caseData.id, value: caseData.reaction?.currentUserReaction === 'OPPOSE' ? 'NONE' : 'OPPOSE' })}
+                       className={`flex items-center gap-1.5 text-[13px] font-bold transition ${caseData.reaction?.currentUserReaction === 'OPPOSE' ? 'text-red-600' : 'hover:text-slate-800'}`}>
+                       <ThumbsDown size={18} className={caseData.reaction?.currentUserReaction === 'OPPOSE' ? 'fill-current' : ''} /> অসমর্থন
+                    </button>
+                    <button className="flex items-center gap-1.5 text-[13px] font-bold hover:text-slate-800 transition">
+                       <Share2 size={18} /> শেয়ার করুন
+                    </button>
+                 </div>
+              </div>
+           </div>
+
+         </div>
       </div>
 
-      {/* Case Evidence Section */}
-      {((caseData as any).evidence?.length > 0 || (caseData as any).sources?.length > 0) && (
-         <div className="mt-4">
-             <h3 className="font-bold px-3 text-slate-900 text-sm mb-3">Case Evidence & Sources</h3>
-             <EvidenceSection 
-                caseData={{
-                   ...caseData,
-                   author: caseData.author,
-                   claims: [{
-                      evidence: (caseData as any).evidence || [],
-                      sources: (caseData as any).sources || []
-                   } as any]
-                } as any}
-                onAddEvidenceClick={onAddEvidenceClick}
-                hideFilter={true}
-             />
-         </div>
-      )}
+      {/* Tabs */}
+      <div className="flex items-center gap-6 border-b border-slate-100 px-5 sm:px-6 pt-2 mt-4">
+          <button
+             onClick={() => setActiveTab('EVIDENCE')}
+             className={`pb-3 text-sm font-bold transition-colors relative ${activeTab === 'EVIDENCE' ? 'text-slate-900' : 'text-slate-500 hover:text-slate-700'}`}
+          >
+             Case Evidence & Sources
+             {activeTab === 'EVIDENCE' && <div className="absolute -bottom-[1px] left-0 right-0 h-[2px] bg-slate-900 rounded-t-full" />}
+          </button>
+          <button
+             onClick={() => setActiveTab('DISCUSSION')}
+             className={`pb-3 text-sm font-bold transition-colors relative ${activeTab === 'DISCUSSION' ? 'text-slate-900' : 'text-slate-500 hover:text-slate-700'}`}
+          >
+             ঘটনা নিয়ে আলোচনা
+             {activeTab === 'DISCUSSION' && <div className="absolute -bottom-[1px] left-0 right-0 h-[2px] bg-slate-900 rounded-t-full" />}
+          </button>
+      </div>
+
+      {/* Tab Content */}
+      <div className="bg-white pb-2">
+         {activeTab === 'EVIDENCE' && (
+            <div className="pt-4">
+               {((caseData as any).evidence?.length > 0 || (caseData as any).sources?.length > 0) ? (
+                  <EvidenceSection 
+                     caseData={{
+                        ...caseData,
+                        author: caseData.author,
+                        claims: [{
+                           evidence: (caseData as any).evidence || [],
+                           sources: (caseData as any).sources || []
+                        } as any]
+                     } as any}
+                     onAddEvidenceClick={onAddEvidenceClick}
+                     hideFilter={true}
+                  />
+               ) : (
+                  <div className="text-center py-6">
+                     <p className="text-slate-500 text-sm font-medium mb-3">এই কেসটির বিষয়ে কোনো তথ্য নেই।</p>
+                     <button onClick={onAddEvidenceClick} className="text-xs text-slate-600 font-bold bg-slate-50 px-3 py-2 rounded-lg hover:bg-slate-100 transition inline-flex items-center gap-1.5">
+                        + তথ্য যোগ করুন
+                     </button>
+                  </div>
+               )}
+            </div>
+         )}
+         
+         {activeTab === 'DISCUSSION' && (
+            <div className="p-5 sm:p-6">
+                <DiscussionComments targetType="CASE" targetId={caseData.id} />
+            </div>
+         )}
+      </div>
 
     </div>
   );
