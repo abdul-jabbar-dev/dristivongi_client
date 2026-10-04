@@ -8,7 +8,7 @@ import { CheckCircle2, User, AlertCircle } from 'lucide-react';
 export default function AssessmentPoll({ claimId }: { claimId: string }) {
   const { data: assessmentResponse, isLoading } = useGetAssessmentsQuery(claimId);
   const [submitAssessment, { isLoading: isSubmitting }] = useSubmitAssessmentMutation();
-  const user = useSelector((state: RootState) => state.auth.user);
+  const { user, isAuthenticated } = useSelector((state: RootState) => state.auth);
   
   const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
   const [selectedChoice, setSelectedChoice] = useState<string | null>(null);
@@ -56,7 +56,7 @@ export default function AssessmentPoll({ claimId }: { claimId: string }) {
   return (
     <div className="mt-4 space-y-6 bg-white border border-slate-200 p-5 rounded-xl">
       <h3 className="font-bold text-slate-800 flex items-center gap-2">
-        <span className="text-xl">💬</span> কমিউনিটির মতামত
+        <span className="text-xl">💬</span> সবার মতামত
       </h3>
       
       {isLoading ? (
@@ -64,7 +64,7 @@ export default function AssessmentPoll({ claimId }: { claimId: string }) {
       ) : (
         <>
           {/* USER SELECTION AREA */}
-          {(!currentUserPosition || isChanging) && (
+          {isAuthenticated && (!currentUserPosition || isChanging) && (
             <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
               <p className="font-bold text-slate-700 mb-4">এই দাবিটি নিয়ে আপনার অবস্থান কী?</p>
               
@@ -149,7 +149,7 @@ export default function AssessmentPoll({ claimId }: { claimId: string }) {
           
           {/* RESULTS AREA */}
           <div className="mt-6">
-            <h4 className="font-bold text-slate-700 mb-4 border-b pb-2">কমিউনিটির অবস্থান</h4>
+            <h4 className="font-bold text-slate-700 mb-4 border-b pb-2">সবার অবস্থান</h4>
             
             <div className="space-y-4">
               <div>

@@ -9,6 +9,8 @@ import AddEvidenceForm from '@/components/case/AddEvidenceDrawer';
 import { MessageCircle } from 'lucide-react';
 import { useCaseDetailsQuery } from '@/redux/feature/case/case.reducer';
 import { useGetOpinionsQuery } from '@/redux/feature/opinion/opinion.reducer';
+import { useSelector } from 'react-redux';
+import { RootState } from '@/redux/store';
 
 export default function CaseDetailsClient({ id, initialData, initialOpinions }: { id: string, initialData: any, initialOpinions: any[] }) {
   // We can still use RTK Query for live updates, but skip initial fetch or let it run in background
@@ -27,10 +29,11 @@ export default function CaseDetailsClient({ id, initialData, initialOpinions }: 
   const [isAddClaimModalOpen, setIsAddClaimModalOpen] = useState(false);
   const [isAddCaseEvidenceModalOpen, setIsAddCaseEvidenceModalOpen] = useState(false);
   
+  const { user } = useSelector((state: RootState) => state.auth);
+  
   // check if current user is creator (we need auth user, but for now we assume they are if author matches, or we just check if author ID exists)
   // We can just rely on the API to protect it, but to show/hide the button we need a check.
-  // We'll just set it to true for now or if we have user context.
-  const isCreator = true; // In a real app, you'd check authUser.id === data.authorId
+  const isCreator = user && (data.author?.id === user.id || data.authorId === user.id);
 
   const counts = {
     claims: data?.claims?.length || 0,

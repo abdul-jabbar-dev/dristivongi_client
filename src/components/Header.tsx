@@ -5,7 +5,8 @@ import { Search, Bell, LayoutDashboard, Compass, MapPin, Briefcase, Bookmark, Pl
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '@/redux/store';
 import { logout } from '@/redux/feature/auth/auth.slice';
-import { useLogoutApiMutation } from '@/redux/feature/user/user.reducer';
+import { useLogoutApiMutation, useGetUserProfileQuery } from '@/redux/feature/user/user.reducer';
+import { getAvatarUrl } from '@/lib/utils';
 
 export default function Header() {
   const router = useRouter();
@@ -13,6 +14,9 @@ export default function Header() {
   const dispatch = useDispatch();
   const { user, isAuthenticated } = useSelector((state: RootState) => state.auth);
   const [logoutApi] = useLogoutApiMutation();
+  const { data: profileResponse } = useGetUserProfileQuery('me', { skip: !isAuthenticated });
+  
+  const mergedUser = user ? { ...user, userProfile: profileResponse?.data?.userProfile } : null;
 
   const handleLogout = async () => {
     try {
@@ -22,7 +26,7 @@ export default function Header() {
     router.push('/');
   };
 
-  const username = user?.fullName || 'Citizen';
+  const username = user?.fullName || 'User';
   const initial = username.charAt(0).toUpperCase();
 
   const NavItem = ({ icon, path, active }: { icon: React.ReactNode, path: string, active: boolean }) => (
@@ -84,14 +88,24 @@ export default function Header() {
         
         {isAuthenticated && user ? (
            <div className="relative group cursor-pointer ml-1">
-              <div className="w-10 h-10 rounded-full bg-slate-800 text-white flex items-center justify-center font-bold text-sm border-2 border-transparent group-hover:border-slate-200 transition">
-                {initial}
+              <div 
+                className="w-10 h-10 rounded-full bg-slate-800 text-white flex items-center justify-center font-bold text-sm border-2 border-transparent group-hover:border-slate-200 transition"
+                onClick={() => router.push(user.userName ? `/profile/${user.userName}` : '/profile/me')}
+              >
+                {user ? (
+                   <img src={getAvatarUrl(mergedUser)} alt="Avatar" className="w-full h-full rounded-full object-cover" />
+                ) : (
+                   initial
+                )}
               </div>
-              <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-xl shadow-lg border border-slate-200 hidden group-hover:block z-50 py-1">
+               <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-xl shadow-lg border border-slate-200 hidden group-hover:block z-50 py-1">
                  <div className="px-4 py-2 border-b border-slate-100">
                     <p className="font-bold text-slate-800 text-sm truncate">{user.fullName}</p>
-                    <p className="text-xs text-slate-500 capitalize">{user.type || 'Citizen'}</p>
+                    <p className="text-xs text-slate-500 capitalize">{user.type === 'CITIZEN' ? 'User' : (user.type || 'User')}</p>
                  </div>
+                 <button onClick={() => router.push(user.userName ? `/profile/${user.userName}` : '/profile/me')} className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2">
+                    <LayoutDashboard size={16} className="text-slate-400" /> My Profile
+                 </button>
                  <button onClick={handleLogout} className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 flex items-center gap-2">
                     <LogOut size={16} className="text-slate-400" /> Log Out
                  </button>

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Bookmark, Share2, MapPin, Globe, Images, Plus, FileText, Camera, Link as LinkIcon, MessageSquare, MessageCircle, Info } from 'lucide-react';
-import { resolveMediaUrl, removeHashtags, formatBengaliTime } from '@/lib/utils';
+import { resolveMediaUrl, removeHashtags, formatBengaliTime , getAvatarUrl} from '@/lib/utils';
 import { TCaseType } from '@/redux/feature/case/case.type';
 import MarkdownRenderer from '@/components/shared/MarkdownRenderer';
 import EvidenceSection from '@/components/case/EvidenceSection';
@@ -21,7 +21,7 @@ export default function CompactCaseDetails({
   const dateStr = dateObj.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
   const authorName = (caseData as any).author?.fullName || 'Tanvir Hasan';
   const authorRole = (caseData as any).author?.type || 'Citizen';
-  const authorImg = resolveMediaUrl((caseData as any).author?.userProfile?.profilePicture || (caseData as any).author?.avatar) || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&q=80';
+  const authorImg = getAvatarUrl((caseData as any).author);
   
   const bannerImg = resolveMediaUrl((caseData as any).medias?.[0]?.media?.url);
   const categoryName = (caseData as any).category?.name || '';

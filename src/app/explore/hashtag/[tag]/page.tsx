@@ -12,7 +12,7 @@ export default function HashtagPage() {
     const tag = params.tag as string;
     
     const { data: tagData, isLoading: isTagLoading } = useGetTagDetailsQuery(tag);
-    const { data: casesData, isLoading: isCasesLoading } = useNewsFeedQuery(tag);
+    const { data: casesData, isLoading: isCasesLoading } = useNewsFeedQuery({ tag });
 
     if (isTagLoading || isCasesLoading) {
         return (

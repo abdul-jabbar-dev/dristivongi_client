@@ -3,7 +3,7 @@ import React, { useRef, useState } from 'react';
 import Link from 'next/link';
 import { MoreHorizontal, Users, MessageCircle, Heart, Share2, Bookmark, ArrowRight, Play, FileText, Image as ImageIcon, X } from 'lucide-react';
 import { TCaseType } from '@/redux/feature/case/case.type';
-import { resolveMediaUrl, formatBengaliTime, toBengaliNumber, removeHashtags } from '@/lib/utils';
+import { resolveMediaUrl, formatBengaliTime, toBengaliNumber, removeHashtags , getAvatarUrl} from '@/lib/utils';
 import DiscussionComments from '@/components/shared/DiscussionComments';
 import MarkdownRenderer from '@/components/shared/MarkdownRenderer';
 import LightboxModal from '@/components/shared/LightboxModal';
@@ -101,20 +101,20 @@ export default function CaseCard({ c }: { c: TCaseType }) {
 
          {/* Author, Category & Options */}
          <div className="flex items-start justify-between mb-4">
-            <div className="flex items-center gap-3">
-               <img src={resolveMediaUrl(c.author?.userProfile?.profilePicture || c.author?.avatar) || 'https://i.pravatar.cc/150'} alt="Author" className="w-10 h-10 object-cover rounded-full border border-slate-200 shadow-sm" />
+            <Link href={`/profile/${c.author?.userName || c.author?.id || ''}`} className="flex items-center gap-3 group">
+               <img src={getAvatarUrl(c.author)} alt="Author" className="w-10 h-10 object-cover rounded-full border border-slate-200 shadow-sm group-hover:shadow-md transition" />
                <div className="flex flex-col">
-                  <div className="text-sm font-bold text-slate-900">
+                  <div className="text-sm font-bold text-slate-900 group-hover:text-blue-600 transition">
                      {c.author?.fullName || c.author?.userName || 'Anonymous'}
-                     <span className="font-normal text-slate-500 text-xs ml-1">({c.author?.userName || 'নাগরিক'}, {c.location || 'ঢাকা'})</span>
+                     <span className="font-normal text-slate-500 text-xs ml-1 group-hover:text-slate-600">({c.author?.userName || 'নাগরিক'}, {c.location || 'ঢাকা'})</span>
                   </div>
                   <div className="flex items-center gap-1.5 text-xs text-slate-500 mt-0.5">
-                     <span className="font-bold text-slate-600 text-[10px] uppercase tracking-wider">CIVIC ISSUE</span>
+                     <span className="font-bold text-slate-600 text-[10px] uppercase tracking-wider">বিষয়</span>
                      <span>·</span>
                      <span>{timeStr}</span>
                   </div>
                </div>
-            </div>
+            </Link>
 
             <button className="text-slate-400 hover:bg-slate-100 rounded-full p-1.5 transition">
                <MoreHorizontal size={18} />
@@ -165,7 +165,7 @@ export default function CaseCard({ c }: { c: TCaseType }) {
          <div className="flex items-center gap-2 text-xs font-bold bg-slate-50 rounded-lg p-3  border border-slate-100 text-slate-600 flex-wrap">
             <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-slate-500"></div>{toBengaliNumber(claimCount)}টি দাবি</div>
             <span className="text-slate-300">|</span>
-            <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-emerald-500"></div>{toBengaliNumber(evidenceCount)}টি প্রমাণ</div>
+            <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-emerald-500"></div>{toBengaliNumber(evidenceCount)}টি তথ্য-প্রমাণ</div>
             <span className="text-slate-300">|</span>
             <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-teal-500"></div>{toBengaliNumber(sourcesCount)}টি উৎস</div>
             <span className="text-slate-300">|</span>
@@ -176,7 +176,7 @@ export default function CaseCard({ c }: { c: TCaseType }) {
          {c.claims && c.claims.length > 0 && (
             <div className="mb-4">
                <p className="text-[10px] mb-2 font-bold text-slate-500">
-                  MAIN CLAIM
+                  দাবি
                </p>
 
                <span className="text-slate-500 " >
@@ -186,23 +186,25 @@ export default function CaseCard({ c }: { c: TCaseType }) {
                   >
                      "{c.claims[0].title}"
                   </p>
-                  <button
-                     type="button"
-                     onClick={() =>
-                        setExpandedClaims(prev => ({
-                           ...prev,
-                           [c.id]: !prev[c.id],
-                        }))
-                     }
-                     className="mt-1 text-xs font-medium text-slate-500 hover:text-slate-600 transition-colors flex items-center gap-1"
-                  >
-                     {expandedClaims[c.id] ? 'Show less' : 'Show more'}
-                     <ChevronDown
-                        size={14}
-                        className={`transition-transform ${expandedClaims[c.id] ? 'rotate-180' : ''
-                           }`}
-                     />
-                  </button>
+                  {(c.claims[0].title?.length || 0) > 150 && (
+                     <button
+                        type="button"
+                        onClick={() =>
+                           setExpandedClaims(prev => ({
+                              ...prev,
+                              [c.id]: !prev[c.id],
+                           }))
+                        }
+                        className="mt-1 text-xs font-medium text-slate-500 hover:text-slate-600 transition-colors flex items-center gap-1"
+                     >
+                        {expandedClaims[c.id] ? 'Show less' : 'Show more'}
+                        <ChevronDown
+                           size={14}
+                           className={`transition-transform ${expandedClaims[c.id] ? 'rotate-180' : ''
+                              }`}
+                        />
+                     </button>
+                  )}
                </span>
 
             </div>
@@ -211,7 +213,7 @@ export default function CaseCard({ c }: { c: TCaseType }) {
          {/* Evidence Section */}
          <div className="mb-4 relative">
             {validMedias.length > 0 && (<div className="flex items-center justify-between mb-2">
-               <span className="text-xs font-bold text-slate-600">প্রমাণ ({toBengaliNumber(validMedias.length)}টি আইটেম)</span>
+               <span className="text-xs font-bold text-slate-600">তথ্য-প্রমাণ ({toBengaliNumber(validMedias.length)}টি আইটেম)</span>
             </div>)}
 
             {validMedias.length > 0 && (
@@ -315,7 +317,7 @@ export default function CaseCard({ c }: { c: TCaseType }) {
             </div>
 
             <Link href={`/case/${c.id}`} className="flex items-center gap-1 text-xs font-bold text-slate-600 hover:text-slate-800 transition">
-               সম্পূর্ণ কেস খুলুন <ArrowRight size={14} />
+               সম্পূর্ণ বিষয়টি খুলুন <ArrowRight size={14} />
             </Link>
          </div>
 

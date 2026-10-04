@@ -1,10 +1,13 @@
 import React, { useState, useRef } from 'react';
 import { useGetOpinionsQuery, useCreateOpinionMutation } from '@/redux/feature/opinion/opinion.reducer';
-import { resolveMediaUrl } from '@/lib/utils';
+import { useGetUserProfileQuery } from '@/redux/feature/user/user.reducer';
+import { resolveMediaUrl , getAvatarUrl} from '@/lib/utils';
 import { ThumbsUp, MessageCircle, MoreHorizontal, Image as ImageIcon, Smile, Send, Camera, Link as LinkIcon, X, Play } from 'lucide-react';
 import { useSelector } from 'react-redux';
 import { RootState } from '@/redux/store';
+import Link from 'next/link';
 import LightboxModal from './LightboxModal';
+import TextWithMentions from './TextWithMentions';
 
 interface Source {
    title: string;
@@ -23,6 +26,10 @@ export default function DiscussionComments({ targetType, targetId, previewMode }
    const [commentText, setCommentText] = useState('');
 
    const user = useSelector((state: RootState) => state.auth.user);
+   const isAuthenticated = useSelector((state: RootState) => state.auth.isAuthenticated);
+   
+   const { data: profileResponse } = useGetUserProfileQuery('me', { skip: !isAuthenticated });
+   const mergedUser = user ? { ...user, userProfile: profileResponse?.data?.userProfile } : null;
 
    // New states for dynamic features
    const [opinionFiles, setOpinionFiles] = useState<File[]>([]);
@@ -126,15 +133,9 @@ export default function DiscussionComments({ targetType, targetId, previewMode }
    return (
       <div className="pt-4 border-t border-slate-100 mt-2">
          {/* Composer */}
-         {(!previewMode || user) && (
+         {isAuthenticated && (!previewMode || user) && (
             <div className="flex gap-3 items-start mb-6">
-               {user?.userProfile?.profilePicture || user?.avatar ? (
-                  <img src={resolveMediaUrl(user?.userProfile?.profilePicture || user?.avatar)} alt="Me" className="w-9 h-9 rounded-full object-cover shrink-0 border border-slate-200" />
-               ) : (
-                  <div className="w-9 h-9 rounded-full bg-gradient-to-br from-slate-500 to-cyan-500 flex items-center justify-center text-white font-bold shadow-md">
-                     {user?.fullName?.charAt(0).toUpperCase() || user?.userName?.charAt(0).toUpperCase() || 'U'}
-                  </div>
-               )}
+               <img src={getAvatarUrl(mergedUser)} alt="Me" className="w-9 h-9 rounded-full object-cover shrink-0 border border-slate-200" />
                <div className="flex-1">
                   <div className="flex flex-col bg-slate-50 border border-slate-200 rounded-xl focus-within:border-slate-400 focus-within:bg-white transition overflow-hidden">
                      <div className="flex items-center px-4 py-2">
@@ -200,7 +201,7 @@ export default function DiscussionComments({ targetType, targetId, previewMode }
                   <div key={op.id} className="flex gap-3">
                      {/* Parent Avatar with connecting line */}
                      <div className="flex flex-col items-center">
-                        <img src={resolveMediaUrl(op.author?.userProfile?.profilePicture || op.author?.avatar) || 'https://i.pravatar.cc/150'} className="w-8 h-8 rounded-full border border-slate-200 object-cover shrink-0 z-10" />
+                        <img src={getAvatarUrl(op.author)} className="w-8 h-8 rounded-full border border-slate-200 object-cover shrink-0 z-10" />
                         {((op.replies && op.replies.length > 0) || replyingToId === op.id) && (
                            <div className="w-0.5 bg-slate-200 flex-1 my-1"></div>
                         )}
@@ -210,13 +211,15 @@ export default function DiscussionComments({ targetType, targetId, previewMode }
                         <div className="bg-slate-50 border border-slate-100 rounded-lg p-3 inline-block min-w-[200px] max-w-full hover:bg-slate-100 transition">
                            <div className="flex justify-between items-start gap-4 mb-2">
                               <div>
-                                 <p className="text-xs font-bold text-slate-800 hover:underline cursor-pointer">{op.author?.fullName || op.author?.userName || 'Anonymous'}</p>
+                                 <Link href={`/profile/${op.author?.userName || op.author?.id || ''}`} className="text-xs font-bold text-slate-800 hover:underline cursor-pointer block">
+                                    {op.author?.fullName || op.author?.userName || 'Anonymous'}
+                                 </Link>
                                  <p className="text-[10px] text-slate-500">{op.author?.userName || 'Citizen'} | {op.value}</p>
                               </div>
                               <span className="text-[10px] text-slate-400">{formatTime(op.createdAt)}</span>
                            </div>
 
-                           <p className="text-sm text-slate-800 whitespace-pre-wrap leading-relaxed">{op.content}</p>
+                           <TextWithMentions className="text-sm text-slate-800 whitespace-pre-wrap leading-relaxed block" text={op.content} />
 
                            {/* Attached Medias */}
                            {op.medias && op.medias.length > 0 && (
@@ -259,21 +262,23 @@ export default function DiscussionComments({ targetType, targetId, previewMode }
                            )}
                         </div>
 
-                        <div className="flex items-center gap-3 mt-1 ml-2 text-[11px] font-bold text-slate-500">
-                           <button className="hover:text-slate-800 hover:bg-slate-100 px-1.5 py-0.5 rounded transition">Like</button>
-                           <span className="text-slate-300">|</span>
-                           <button
-                              onClick={() => { setReplyingToId(replyingToId === op.id ? null : op.id); setReplyText(`@${op.author?.userName} `); }}
-                              className="hover:text-slate-800 hover:bg-slate-100 px-1.5 py-0.5 rounded transition"
-                           >
-                              Reply
-                           </button>
-                        </div>
+                        {isAuthenticated && (
+                           <div className="flex items-center gap-3 mt-1 ml-2 text-[11px] font-bold text-slate-500">
+                              <button className="hover:text-slate-800 hover:bg-slate-100 px-1.5 py-0.5 rounded transition">Like</button>
+                              <span className="text-slate-300">|</span>
+                              <button
+                                 onClick={() => { setReplyingToId(replyingToId === op.id ? null : op.id); setReplyText(`@${op.author?.userName} `); }}
+                                 className="hover:text-slate-800 hover:bg-slate-100 px-1.5 py-0.5 rounded transition"
+                              >
+                                 Reply
+                              </button>
+                           </div>
+                        )}
 
                         {/* Reply Composer */}
                         {replyingToId === op.id && (
                            <div className="mt-3 flex gap-2 items-center">
-                              <img src={resolveMediaUrl(user?.userProfile?.profilePicture || user?.avatar) || 'https://i.pravatar.cc/150'} className="w-6 h-6 rounded-full border border-slate-200 object-cover" />
+                              <img src={getAvatarUrl(mergedUser)} className="w-6 h-6 rounded-full border border-slate-200 object-cover" />
                               <div className="flex-1 bg-white border border-slate-200 rounded-full flex items-center px-3 py-1.5 shadow-sm">
                                  <input
                                     type="text"
@@ -297,7 +302,7 @@ export default function DiscussionComments({ targetType, targetId, previewMode }
                               {op.replies.map((reply: any, index: number) => (
                                  <div key={reply.id} className="flex gap-2">
                                     <div className="flex flex-col items-center">
-                                       <img src={resolveMediaUrl(reply.author?.userProfile?.profilePicture || reply.author?.avatar) || 'https://i.pravatar.cc/150'} className="w-6 h-6 rounded-full border border-slate-200 object-cover shrink-0 z-10" />
+                                       <img src={getAvatarUrl(reply.author)} className="w-6 h-6 rounded-full border border-slate-200 object-cover shrink-0 z-10" />
                                        {index < op.replies.length - 1 && (
                                           <div className="w-0.5 bg-slate-200 flex-1 my-1"></div>
                                        )}
@@ -305,10 +310,12 @@ export default function DiscussionComments({ targetType, targetId, previewMode }
                                     <div className="flex-1">
                                        <div className="bg-white border border-slate-100 rounded-lg p-2.5 inline-block min-w-[150px] max-w-full">
                                           <div className="flex justify-between items-start gap-3 mb-1">
-                                             <p className="text-[11px] font-bold text-slate-800">{reply.author?.fullName || reply.author?.userName || 'Anonymous'}</p>
+                                             <Link href={`/profile/${reply.author?.userName || reply.author?.id || ''}`} className="text-[11px] font-bold text-slate-800 hover:underline">
+                                                {reply.author?.fullName || reply.author?.userName || 'Anonymous'}
+                                             </Link>
                                              <span className="text-[9px] text-slate-400">{formatTime(reply.createdAt)}</span>
                                           </div>
-                                          <p className="text-xs text-slate-800 whitespace-pre-wrap">{reply.content}</p>
+                                          <TextWithMentions className="text-xs text-slate-800 whitespace-pre-wrap block" text={reply.content} />
                                        </div>
                                     </div>
                                  </div>

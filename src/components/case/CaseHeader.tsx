@@ -1,7 +1,7 @@
 import React from 'react';
 import StaticTestBadge from '@/components/common/StaticTestBadge';
 import { Bookmark, Share2, MoreHorizontal, MapPin, Globe, Images, Plus } from 'lucide-react';
-import { resolveMediaUrl } from '@/lib/utils';
+import { resolveMediaUrl , getAvatarUrl} from '@/lib/utils';
 import { TCaseType } from '@/redux/feature/case/case.type';
 
 export default function CaseHeader({ caseData }: { caseData: TCaseType }) {
@@ -9,10 +9,10 @@ export default function CaseHeader({ caseData }: { caseData: TCaseType }) {
   const dateStr = dateObj.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
   const authorName = (caseData as any).author?.fullName || 'Tanvir Hasan';
   const authorRole = (caseData as any).author?.type || 'Citizen';
-  const authorImg = resolveMediaUrl((caseData as any).author?.userProfile?.profilePicture || (caseData as any).author?.avatar) || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&q=80';
+  const authorImg = getAvatarUrl((caseData as any).author);
   
   // Banner media
-  const bannerImg = resolveMediaUrl((caseData as any).medias?.[0]?.media?.url) || 'https://images.unsplash.com/photo-1541888059039-2708304a37b3?w=1600&q=80';
+  const bannerImg = resolveMediaUrl((caseData as any).medias?.[0]?.media?.url) || 'data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='800' height='400' viewBox='0 0 800 400'%3E%3Crect width='800' height='400' fill='%23f1f5f9'/%3E%3Ctext x='50%25' y='50%25' font-family='sans-serif' font-size='20' fill='%2394a3b8' text-anchor='middle' dy='.3em'%3ENo Image Available%3C/text%3E%3C/svg%3E';
   const categoryName = (caseData as any).category?.name || '';
   const locationName = caseData.location || 'Dhaka, Bangladesh';
 

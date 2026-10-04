@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Play, FileText, Download } from 'lucide-react';
-import { resolveMediaUrl } from '@/lib/utils';
+import { resolveMediaUrl , getAvatarUrl} from '@/lib/utils';
 
 export interface LightboxMedia {
    url: string;
@@ -159,7 +159,7 @@ export default function LightboxModal({ medias, initialIndex, onClose, contextIn
                   <>
                      <div className="p-4 border-b border-slate-100 flex items-center gap-3 bg-slate-50/50">
                         <div className="w-10 h-10 rounded-full bg-slate-200 shrink-0 overflow-hidden border border-slate-200">
-                           <img src={contextInfo.authorAvatar || 'https://i.pravatar.cc/150'} className="w-full h-full object-cover" />
+                           <img src={contextInfo.authorAvatar || 'https://ui-avatars.com/api/?name=User&background=random'} className="w-full h-full object-cover" />
                         </div>
                         <div className="flex-1 min-w-0">
                            <p className="font-bold text-sm text-slate-800 truncate">{contextInfo.authorName || 'Anonymous'}</p>

@@ -18,6 +18,15 @@ export function resolveMediaUrl(url: string | undefined): string {
     return `${ENV.BASE_URL}/${cleanUrl}`;
 }
 
+export const getAvatarUrl = (user: any): string => {
+    const defaultImg = '/profile/default_profile.png';
+    if (!user) return defaultImg;
+    const pic = user.userProfile?.profilePicture || user.avatar;
+    if (pic) return resolveMediaUrl(pic);
+    
+    return defaultImg;
+};
+
 export const toBengaliNumber = (num: number | string): string => {
     const digits = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
     return num.toString().split('').map(d => /[0-9]/.test(d) ? digits[parseInt(d)] : d).join('');

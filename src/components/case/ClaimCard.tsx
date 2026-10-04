@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Crown, Users, MoreHorizontal, Camera, Link as LinkIcon, MessageSquare, MessageCircle, ArrowRight, Shield } from 'lucide-react';
-import { resolveMediaUrl } from '@/lib/utils';
+import { resolveMediaUrl , getAvatarUrl} from '@/lib/utils';
 import OpinionFeed from '@/components/opinion/OpinionFeed';
 import StaticTestBadge from '@/components/common/StaticTestBadge';
 import MarkdownRenderer from '@/components/shared/MarkdownRenderer';
@@ -20,11 +20,11 @@ export default function ClaimCard({
   const dateObj = claim.createdAt ? new Date(claim.createdAt) : new Date();
   const dateStr = dateObj.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
   const authorName = claim.creator?.fullName || 'Tanvir Hasan';
-  const authorImg = resolveMediaUrl(claim.creator?.userProfile?.profilePicture || claim.creator?.avatar) || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&q=80';
+  const authorImg = getAvatarUrl(claim.creator);
 
   // Get thumbnail from first evidence or fallback
   const firstEvidenceMedia = claim.evidence?.[0]?.evidence?.medias?.[0]?.media?.url;
-  const thumbUrl = resolveMediaUrl(firstEvidenceMedia) || 'https://images.unsplash.com/photo-1541888059039-2708304a37b3?w=500&q=80';
+  const thumbUrl = resolveMediaUrl(firstEvidenceMedia) || 'data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='800' height='400' viewBox='0 0 800 400'%3E%3Crect width='800' height='400' fill='%23f1f5f9'/%3E%3Ctext x='50%25' y='50%25' font-family='sans-serif' font-size='20' fill='%2394a3b8' text-anchor='middle' dy='.3em'%3ENo Image Available%3C/text%3E%3C/svg%3E';
 
   const evidenceCount = claim.evidence?.length || 0;
   const sourcesCount = claim.sources?.length || 0;

@@ -3,6 +3,7 @@ import { TCaseType } from '@/redux/feature/case/case.type';
 import { resolveMediaUrl, formatBengaliTime } from '@/lib/utils';
 import { FileText, Camera, Link as LinkIcon, User, Flag, ArrowUpRight } from 'lucide-react';
 import MediaGrid from '@/components/shared/MediaGrid';
+import EvidenceValidation from './EvidenceValidation';
 
 export default function EvidenceSection({ caseData, onAddEvidenceClick, hideFilter }: { caseData: TCaseType, onAddEvidenceClick?: () => void, hideFilter?: boolean }) {
   const [filterType, setFilterType] = useState<'ALL' | 'SUPPORTS' | 'CHALLENGES' | 'CONTEXT'>('ALL');
@@ -267,6 +268,7 @@ export default function EvidenceSection({ caseData, onAddEvidenceClick, hideFilt
                   </div>
                )}
                
+               <EvidenceValidation evidenceId={c.id || c.evidenceId} />
 
             </div>
           );

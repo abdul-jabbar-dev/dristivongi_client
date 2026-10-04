@@ -4,18 +4,25 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useLoginMutation } from '@/redux/feature/user/user.reducer';
 
+import { useDispatch } from 'react-redux';
+import { setCredentials } from '@/redux/feature/auth/auth.slice';
+
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const router = useRouter();
+  const dispatch = useDispatch();
   const [login, { isLoading, isError, error }] = useLoginMutation();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       const res = await login({ email, password }).unwrap();
-      if (res.data?.accessToken) {
-        localStorage.setItem('token', res.data.accessToken);
+      if (res.data?.accessToken || res.data?.AccessToken) {
+        const token = res.data.accessToken || res.data.AccessToken;
+        const user = res.data.user || res.data.User || res.data;
+        localStorage.setItem('token', token);
+        dispatch(setCredentials({ user: user, accessToken: token }));
         alert('সফলভাবে লগইন হয়েছে!');
         router.push('/');
       }

@@ -43,7 +43,7 @@ export default function Sidebar() {
             </div>
             <div>
               <div className="text-slate-900 font-extrabold text-base tracking-tight leading-tight">Drishtivongi</div>
-              <div className="text-[10px] text-slate-500 font-medium leading-none">People, Evidence, Better Decisions.</div>
+              <div className="text-[10px] text-slate-500 font-medium leading-none">দাবি থেকে প্রমাণ, প্রমাণ থেকে দৃষ্টিভঙ্গি।</div>
             </div>
           </div>
         </div>
@@ -51,8 +51,8 @@ export default function Sidebar() {
         {/* Navigation Menu */}
         <nav className="p-4 space-y-1 overflow-y-auto flex-1">
           <NavItem onClick={() => router.push('/')} icon={<LayoutDashboard size={18} />} label="Home" />
-          <NavItem onClick={() => router.push('/')} icon={<Compass size={18} />} label="Explore Cases" active />
-          <NavItem icon={<MapPin size={18} />} label="Nearby Cases" />
+          <NavItem onClick={() => router.push('/')} icon={<Compass size={18} />} label="Explore Topics" active />
+          <NavItem icon={<MapPin size={18} />} label="Nearby Topics" />
           <NavItem icon={<FolderOpen size={18} />} label="For You" />
           <NavItem icon={<Briefcase size={18} />} label="Projects" />
           <NavItem icon={<Building2 size={18} />} label="Organizations" />
@@ -61,7 +61,7 @@ export default function Sidebar() {
             <div className="border-t border-slate-100" />
           </div>
 
-          <NavItem icon={<Bookmark size={18} />} label="Saved Cases" />
+          <NavItem icon={<Bookmark size={18} />} label="Saved Topics" />
           <NavItem icon={<History size={18} />} label="My Contributions" />
           <NavItem icon={<BellRing size={18} />} label="Notifications" badge="3" />
           <NavItem icon={<Settings size={18} />} label="Settings" />
@@ -75,13 +75,13 @@ export default function Sidebar() {
             </div>
             <h4 className="text-xs font-bold text-slate-900">Make a difference</h4>
             <p className="text-[11px] text-slate-500 mt-1 leading-normal">
-              Share information, add evidence, and join the discussion.
+              Share information, add sources, and join the discussion.
             </p>
             <button 
               onClick={() => router.push('/create-case')}
               className="mt-3 w-full bg-slate-600 hover:bg-slate-700 text-white font-semibold py-2 px-3 rounded-xl text-xs flex items-center justify-center gap-1.5 shadow-sm transition"
             >
-              + Create New Case
+              + Start a New Topic
             </button>
           </div>
           
@@ -93,7 +93,7 @@ export default function Sidebar() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-xs font-bold text-slate-900 truncate">{user.fullName}</p>
-                  <p className="text-[10px] text-slate-500 capitalize">{user.type || 'Citizen'}</p>
+                  <p className="text-[10px] text-slate-500 capitalize">{user.type === 'CITIZEN' ? 'User' : (user.type || 'User')}</p>
                 </div>
               </div>
               <button onClick={handleLogout} className="text-slate-400 hover:text-slate-700 p-1">

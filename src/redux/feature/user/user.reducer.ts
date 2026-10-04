@@ -7,9 +7,22 @@ import { baseQueryWithReauth } from '../../baseQueryWithReauth'
 export const USER_Api = createApi({
   reducerPath: 'userApi',
   baseQuery: baseQueryWithReauth,
+  tagTypes: ['UserProfile', 'CurrentUser'],
   endpoints: (builder) => ({
-    getUserProfile: builder.query<TUserType, string>({
-      query: () => `users/`,
+    getUserProfile: builder.query<{data: TUserType}, string>({
+      query: (username) => `user/profile/${username}`,
+      providesTags: (result, error, arg) => [{ type: 'UserProfile', id: arg }],
+    }),
+    updateProfile: builder.mutation<any, any>({
+      query: (data) => ({
+        url: `user/me/profile`,
+        method: 'PATCH',
+        body: data,
+      }),
+      invalidatesTags: (result, error, arg, meta) => ['CurrentUser', 'UserProfile'],
+    }),
+    checkUsername: builder.query<{data: {available: boolean, reason?: string}}, string>({
+      query: (username) => `user/check-username?username=${encodeURIComponent(username)}`,
     }),
     getMe: builder.query<any, void>({
       query: () => `auth/me`,
@@ -43,4 +56,4 @@ export const USER_Api = createApi({
   }),
 })
 
-export const { useGetUserProfileQuery, useLoginMutation, useRegisterMutation, useLazyGetMeQuery, useRefreshMutation, useLogoutApiMutation } = USER_Api
+export const { useGetUserProfileQuery, useUpdateProfileMutation, useLoginMutation, useRegisterMutation, useLazyGetMeQuery, useGetMeQuery, useRefreshMutation, useLogoutApiMutation, useLazyCheckUsernameQuery } = USER_Api

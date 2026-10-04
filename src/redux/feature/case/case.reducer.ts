@@ -7,10 +7,21 @@ import { TCaseType } from './case.type'
 export const CASE_Api = createApi({
     reducerPath: 'caseApi',
     baseQuery: baseQueryWithReauth,
-    tagTypes: ['Case', 'CaseList', 'Assessment'],
+    tagTypes: ['Case', 'CaseList', 'Assessment', 'EvidenceValidation'],
     endpoints: (builder) => ({
-        newsFeed: builder.query<{ data: TCaseType[] }, string | void>({
-            query: (tag) => tag ? `case/get_case/news_feed?tag=${encodeURIComponent(tag)}` : `case/get_case/news_feed`,
+        newsFeed: builder.query<{ data: TCaseType[] }, { tag?: string, author?: string } | void>({
+            query: (params) => {
+                let url = `case/get_case/news_feed`;
+                if (params) {
+                    const queryParams = new URLSearchParams();
+                    if (params.tag) queryParams.append('tag', params.tag);
+                    if (params.author) queryParams.append('author', params.author);
+                    if (queryParams.toString()) {
+                        url += `?${queryParams.toString()}`;
+                    }
+                }
+                return url;
+            },
             providesTags: ['CaseList'],
         }),
         caseDetails: builder.query<{ data: TCaseType }, string>({
@@ -68,7 +79,23 @@ export const CASE_Api = createApi({
                 body: data,
             }),
         }),
+        submitEvidenceValidation: builder.mutation({
+            query: ({ evidenceId, value }) => ({
+                url: `/evidence/${evidenceId}/validation`,
+                method: "POST",
+                body: { value }
+            }),
+            invalidatesTags: (result, error, { evidenceId }) => [
+                { type: 'EvidenceValidation', id: evidenceId }
+            ]
+        }),
+        getEvidenceValidation: builder.query({
+            query: (evidenceId) => `/evidence/${evidenceId}/validation`,
+            providesTags: (result, error, evidenceId) => [
+                { type: 'EvidenceValidation', id: evidenceId }
+            ]
+        })
     }),
 })
 
-export const { useNewsFeedQuery, useCaseDetailsQuery, useCreateCaseMutation, useCreateClaimMutation, useAddEvidenceMutation, useAddCaseEvidenceMutation, useGetAssessmentsQuery, useSubmitAssessmentMutation, useImportUrlMutation } = CASE_Api
+export const { useNewsFeedQuery, useCaseDetailsQuery, useCreateCaseMutation, useCreateClaimMutation, useAddEvidenceMutation, useAddCaseEvidenceMutation, useGetAssessmentsQuery, useSubmitAssessmentMutation, useImportUrlMutation, useSubmitEvidenceValidationMutation, useGetEvidenceValidationQuery } = CASE_Api

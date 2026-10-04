@@ -3,7 +3,7 @@ import { Camera, Video, Link as LinkIcon, Smile, X, Plus } from 'lucide-react';
 import { useCreateOpinionMutation } from '@/redux/feature/opinion/opinion.reducer';
 import { useSelector } from 'react-redux';
 import { RootState } from '@/redux/store';
-import { resolveMediaUrl } from '@/lib/utils';
+import { resolveMediaUrl , getAvatarUrl} from '@/lib/utils';
 
 interface Source {
   title: string;
@@ -12,8 +12,10 @@ interface Source {
 
 export default function OpinionComposer({ targetType, targetId }: { targetType: string, targetId: string }) {
   const [createOpinion, { isLoading: isCreatingOpinion }] = useCreateOpinionMutation();
-  const user = useSelector((state: RootState) => state.auth.user);
+  const { user, isAuthenticated } = useSelector((state: RootState) => state.auth);
   const [opinionContent, setOpinionContent] = useState('');
+
+  if (!isAuthenticated) return null;
   const getOptions = () => {
     if (targetType === 'CASE') return [
       { value: 'DISCUSSION', label: 'আলোচনা' },
@@ -127,7 +129,7 @@ export default function OpinionComposer({ targetType, targetId }: { targetType: 
   return (
     <div className="bg-white border border-slate-200 rounded-xl p-4 sm:p-5 shadow-sm">
       <div className="flex gap-3 sm:gap-4">
-        <img src={resolveMediaUrl(user?.userProfile?.profilePicture || user?.avatar) || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&q=80"} alt="User" className="w-10 h-10 rounded-full shrink-0 border border-slate-200 object-cover" />
+        <img src={getAvatarUrl(user)} alt="User" className="w-10 h-10 rounded-full shrink-0 border border-slate-200 object-cover" />
         <div className="flex-1">
           <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg p-2 px-3 focus-within:border-slate-400 focus-within:ring-1 focus-within:ring-slate-400 transition">
             <input 

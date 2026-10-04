@@ -44,11 +44,11 @@ export default function RightSidebar() {
 
       {/* Case at a Glance */}
       <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
-        <h3 className="text-sm font-bold text-slate-800 mb-3 border-b border-slate-100 pb-2">এক নজরে কেস</h3>
+        <h3 className="text-sm font-bold text-slate-800 mb-3 border-b border-slate-100 pb-2">এক নজরে বিষয়টি</h3>
         <div className="space-y-3">
           <div className="flex justify-between items-start text-xs">
             <div>
-              <p className="font-semibold text-slate-700">সক্রিয় প্রধান কেসসমূহ</p>
+              <p className="font-semibold text-slate-700">সক্রিয় প্রধান বিষয়সমূহ</p>
               <p className="text-slate-500 mt-1 cursor-pointer hover:underline">ঢাকা মেট্রো সম্প্রসারণ</p>
               <p className="text-slate-500 mt-1 cursor-pointer hover:underline">বুড়িগঙ্গা নদীদূষণ</p>
               <p className="text-slate-500 mt-1 cursor-pointer hover:underline">মোহাম্মদ আলী ভবনের বা...</p>
@@ -69,7 +69,7 @@ export default function RightSidebar() {
            <div className="flex flex-col items-center text-center">
               <img src="https://i.pravatar.cc/150?u=1" className="w-10 h-10 rounded-full border border-slate-200 mb-1" alt="" />
               <p className="text-[10px] font-bold text-slate-700 leading-tight">তানভীর হাসান</p>
-              <p className="text-[9px] text-slate-500">নাগরিক</p>
+              <p className="text-[9px] text-slate-500">ব্যবহারকারী</p>
            </div>
            <div className="flex flex-col items-center text-center">
               <img src="https://i.pravatar.cc/150?u=2" className="w-10 h-10 rounded-full border border-slate-200 mb-1" alt="" />
@@ -112,7 +112,7 @@ export default function RightSidebar() {
 
       {/* Similar Cases */}
       <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
-        <h3 className="text-sm font-bold text-slate-800 mb-3 border-b border-slate-100 pb-2">অনুরূপ কেসসমূহ</h3>
+        <h3 className="text-sm font-bold text-slate-800 mb-3 border-b border-slate-100 pb-2">অনুরূপ বিষয়সমূহ</h3>
         <ul className="space-y-2 text-xs text-slate-700">
            <li className="cursor-pointer hover:text-slate-600 truncate">ঢাকা মেট্রো সম্প্রসারণ, ইনারবেড়িবাঁধ প্র...</li>
            <li className="cursor-pointer hover:text-slate-600 truncate">বুড়িগঙ্গা নদীদূষণ, ইনারবেড়িবাঁধ প্রকল্পের...</li>
@@ -122,7 +122,7 @@ export default function RightSidebar() {
 
       {/* Nearby Cases */}
       <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
-        <h3 className="text-sm font-bold text-slate-800 mb-1 border-b border-slate-100 pb-2">কাছাকাছি কেস</h3>
+        <h3 className="text-sm font-bold text-slate-800 mb-1 border-b border-slate-100 pb-2">কাছাকাছি বিষয়সমূহ</h3>
         <p className="text-[10px] text-slate-500 mb-2">Based on location → local problems</p>
         <ul className="space-y-2 text-xs text-slate-700">
            <li className="cursor-pointer hover:text-slate-600 truncate">ঢাকা প্রবাহের লেক; লেকা পরায়লিম...</li>

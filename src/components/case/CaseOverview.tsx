@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { FileText, Calendar, MapPin, Clock, Tag, ThumbsUp, Heart, MessageSquare, Share2, Bookmark, Image as ImageIcon, Link as LinkIcon, Send } from 'lucide-react';
 import { TCaseType } from '@/redux/feature/case/case.type';
-import { resolveMediaUrl } from '@/lib/utils';
+import { resolveMediaUrl , getAvatarUrl} from '@/lib/utils';
 import OpinionFeed from '@/components/opinion/OpinionFeed';
 import { useCreateOpinionMutation } from '@/redux/feature/opinion/opinion.reducer';
 
@@ -19,7 +19,7 @@ export default function CaseOverview({
 
   const authorName = (caseData as any).author?.fullName || 'Tanvir Hasan';
   const authorRole = (caseData as any).author?.type || 'Citizen';
-  const authorImg = resolveMediaUrl((caseData as any).author?.userProfile?.profilePicture || (caseData as any).author?.avatar) || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&q=80';
+  const authorImg = getAvatarUrl((caseData as any).author);
   
   const dateObj = caseData.createdAt ? new Date(caseData.createdAt) : new Date();
   const dateStr = dateObj.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
@@ -31,11 +31,11 @@ export default function CaseOverview({
 
   // Gallery images matching the expressway case
   const galleryImages = [
-    'https://images.unsplash.com/photo-1541888059039-2708304a37b3?w=800&q=80',
-    'https://images.unsplash.com/photo-1586281380349-632531db7ed4?w=400&q=80',
-    'https://images.unsplash.com/photo-1568605117036-5fe5e7bab0b7?w=400&q=80',
-    'https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=400&q=80',
-    'https://images.unsplash.com/photo-1524661135-423995f22d0b?w=400&q=80'
+    'data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='800' height='400' viewBox='0 0 800 400'%3E%3Crect width='800' height='400' fill='%23f1f5f9'/%3E%3Ctext x='50%25' y='50%25' font-family='sans-serif' font-size='20' fill='%2394a3b8' text-anchor='middle' dy='.3em'%3ENo Image Available%3C/text%3E%3C/svg%3E',
+    'data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='800' height='400' viewBox='0 0 800 400'%3E%3Crect width='800' height='400' fill='%23f1f5f9'/%3E%3Ctext x='50%25' y='50%25' font-family='sans-serif' font-size='20' fill='%2394a3b8' text-anchor='middle' dy='.3em'%3ENo Image Available%3C/text%3E%3C/svg%3E',
+    'data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='800' height='400' viewBox='0 0 800 400'%3E%3Crect width='800' height='400' fill='%23f1f5f9'/%3E%3Ctext x='50%25' y='50%25' font-family='sans-serif' font-size='20' fill='%2394a3b8' text-anchor='middle' dy='.3em'%3ENo Image Available%3C/text%3E%3C/svg%3E',
+    'data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='800' height='400' viewBox='0 0 800 400'%3E%3Crect width='800' height='400' fill='%23f1f5f9'/%3E%3Ctext x='50%25' y='50%25' font-family='sans-serif' font-size='20' fill='%2394a3b8' text-anchor='middle' dy='.3em'%3ENo Image Available%3C/text%3E%3C/svg%3E',
+    'data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='800' height='400' viewBox='0 0 800 400'%3E%3Crect width='800' height='400' fill='%23f1f5f9'/%3E%3Ctext x='50%25' y='50%25' font-family='sans-serif' font-size='20' fill='%2394a3b8' text-anchor='middle' dy='.3em'%3ENo Image Available%3C/text%3E%3C/svg%3E'
   ];
 
   const handlePostOpinion = async () => {

@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { MoreHorizontal, CheckCircle2, User, AlertCircle, X, MessageSquare, Share2, Bookmark, FileText, Send, Play } from 'lucide-react';
 import { useGetOpinionsQuery, useCreateOpinionMutation } from '@/redux/feature/opinion/opinion.reducer';
-import { resolveMediaUrl } from '@/lib/utils';
+import { resolveMediaUrl, getAvatarUrl } from '@/lib/utils';
+import TextWithMentions from '../shared/TextWithMentions';
 import OpinionComposer from './OpinionComposer';
 import { useSelector } from 'react-redux';
 import { RootState } from '@/redux/store';
@@ -12,7 +13,7 @@ export default function OpinionFeed({ targetType, targetId, buttonText, initiall
   const [isOpen, setIsOpen] = useState(targetType === 'CASE' || initiallyOpen);
   
   const [createOpinion, { isLoading: isPostingReply }] = useCreateOpinionMutation();
-  const user = useSelector((state: RootState) => state.auth.user);
+  const { user, isAuthenticated } = useSelector((state: RootState) => state.auth);
   
   const [replyingToId, setReplyingToId] = useState<string | null>(null);
   const [replyText, setReplyText] = useState('');
@@ -100,7 +101,7 @@ export default function OpinionFeed({ targetType, targetId, buttonText, initiall
             <div key={op.id} className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
                <div className="flex justify-between items-start mb-3">
                   <div className="flex items-center gap-3">
-                     <img src={resolveMediaUrl(op.author?.userProfile?.profilePicture || op.author?.avatar) || 'https://i.pravatar.cc/150'} alt="Author" className="w-10 h-10 rounded-full border border-slate-200 object-cover" />
+                     <img src={getAvatarUrl(op.author)} alt="Author" className="w-10 h-10 rounded-full border border-slate-200 object-cover" />
                      <div>
                         <div className="flex items-center gap-2">
                            <h4 className="font-bold text-slate-900 text-sm">{op.author?.fullName}</h4>
@@ -113,9 +114,7 @@ export default function OpinionFeed({ targetType, targetId, buttonText, initiall
                   </div>
                   <button className="text-slate-400 hover:text-slate-600"><MoreHorizontal size={18}/></button>
                </div>
-               <p className="text-slate-800 text-sm leading-relaxed mb-4 whitespace-pre-wrap">
-                  {op.content}
-               </p>
+               <TextWithMentions className="text-slate-800 text-sm leading-relaxed mb-4 whitespace-pre-wrap block" text={op.content} />
                
                {/* Media Rendering */}
                {op.medias && op.medias.length > 0 && (
@@ -162,12 +161,18 @@ export default function OpinionFeed({ targetType, targetId, buttonText, initiall
                         </div>
                         <span className="ml-1">0</span>
                      </button>
-                     <button 
-                        onClick={() => { setReplyingToId(replyingToId === op.id ? null : op.id); setReplyText(''); }} 
-                        className="flex items-center gap-1.5 hover:text-slate-600 transition"
-                     >
-                        <MessageSquare size={14}/> {op.replies?.length || 0} মন্তব্য
-                     </button>
+                     {isAuthenticated ? (
+                        <button 
+                           onClick={() => { setReplyingToId(replyingToId === op.id ? null : op.id); setReplyText(''); }} 
+                           className="flex items-center gap-1.5 hover:text-slate-600 transition"
+                        >
+                           <MessageSquare size={14}/> {op.replies?.length || 0} মন্তব্য
+                        </button>
+                     ) : (
+                        <span className="flex items-center gap-1.5 text-slate-400">
+                           <MessageSquare size={14}/> {op.replies?.length || 0} মন্তব্য
+                        </span>
+                     )}
                   </div>
                   <div className="flex items-center gap-4 text-slate-500 text-xs font-medium">
                      <button className="flex items-center gap-1.5 hover:text-slate-600 transition"><Share2 size={14}/> শেয়ার</button>
@@ -176,9 +181,9 @@ export default function OpinionFeed({ targetType, targetId, buttonText, initiall
                </div>
 
                {/* Reply Composer */}
-               {replyingToId === op.id && (
+               {isAuthenticated && replyingToId === op.id && (
                   <div className="mt-4 flex gap-2 items-center border-t border-slate-100 pt-4">
-                     <img src={resolveMediaUrl(user?.userProfile?.profilePicture || user?.avatar) || 'https://i.pravatar.cc/150'} className="w-8 h-8 rounded-full border border-slate-200 object-cover" />
+                     <img src={getAvatarUrl(user)} className="w-8 h-8 rounded-full border border-slate-200 object-cover" />
                      <div className="flex-1 bg-slate-50 border border-slate-200 rounded-full flex items-center px-3 py-1.5 shadow-sm focus-within:border-slate-400 focus-within:bg-white transition">
                         <input 
                            type="text"
@@ -202,7 +207,7 @@ export default function OpinionFeed({ targetType, targetId, buttonText, initiall
                      {op.replies.map((reply: any, index: number) => (
                         <div key={reply.id} className="flex gap-2">
                            <div className="flex flex-col items-center mt-1">
-                              <img src={resolveMediaUrl(reply.author?.userProfile?.profilePicture || reply.author?.avatar) || 'https://i.pravatar.cc/150'} className="w-6 h-6 rounded-full border border-slate-200 object-cover shrink-0 z-10" />
+                              <img src={getAvatarUrl(reply.author)} className="w-6 h-6 rounded-full border border-slate-200 object-cover shrink-0 z-10" />
                               {index < op.replies.length - 1 && (
                                  <div className="w-0.5 bg-slate-200 flex-1 my-1"></div>
                               )}

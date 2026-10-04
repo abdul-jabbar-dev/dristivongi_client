@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { TCaseType } from '@/redux/feature/case/case.type';
 import { Crown, Users, Camera, Link as LinkIcon, MessageSquare, MessageCircle, FileText, Edit, Plus, MapPin, ArrowUpRight, Menu, X, Search, ChevronDown } from 'lucide-react';
-import { resolveMediaUrl } from '@/lib/utils';
+import { resolveMediaUrl , getAvatarUrl} from '@/lib/utils';
 import EvidenceSection from './EvidenceSection';
 import AssessmentPoll from '@/components/opinion/AssessmentPoll';
 import StaticTestBadge from '@/components/common/StaticTestBadge';
@@ -9,6 +9,10 @@ import AddEvidenceForm from './AddEvidenceDrawer';
 import DiscussionComments from '@/components/shared/DiscussionComments';
 import { useGetOpinionsQuery } from '@/redux/feature/opinion/opinion.reducer';
 import { useGetAssessmentsQuery } from '@/redux/feature/case/case.reducer';
+import { RootState } from '@/redux/store';
+import { useSelector } from 'react-redux';
+
+
 
 export default function ClaimWorkspace({
    caseData,
@@ -25,6 +29,8 @@ export default function ClaimWorkspace({
    const [isAddEvidenceOpen, setIsAddEvidenceOpen] = useState(false);
    const [isClaimsPanelOpen, setIsClaimsPanelOpen] = useState(false);
    const [searchQuery, setSearchQuery] = useState('');
+   const { isAuthenticated, user } = useSelector((state: RootState) => state.auth);
+   const isCaseCreator = user && (caseData.author?.id === user.id || (caseData as any).authorId === user.id);
 
    useEffect(() => {
       const handleEsc = (e: KeyboardEvent) => {
@@ -44,9 +50,11 @@ export default function ClaimWorkspace({
       return (
          <div className="bg-white border border-slate-200 rounded-2xl p-8 text-center shadow-sm">
             <p className="text-slate-500 mb-4 font-bold text-sm">এই বিষয়ে এখনও কোনো দাবি যোগ করা হয়নি।</p>
-            <button onClick={onAddClaimClick} className="bg-slate-600 text-white px-4 py-2 rounded-lg text-sm font-semibold inline-flex items-center gap-2 hover:bg-slate-700">
-               <Plus size={16} /> দাবি যোগ করুন
-            </button>
+            {isAuthenticated && (
+               <button onClick={onAddClaimClick} className="bg-slate-600 text-white px-4 py-2 rounded-lg text-sm font-semibold inline-flex items-center gap-2 hover:bg-slate-700">
+                  <Plus size={16} /> দাবি যোগ করুন
+               </button>
+            )}
          </div>
       );
    }
@@ -56,7 +64,7 @@ export default function ClaimWorkspace({
    const isCreator = (selectedClaim as any).createdBy === authorId || claims.indexOf(selectedClaim) === 0;
 
    const authorName = selectedClaim.creator?.fullName || 'Tanvir Hasan';
-   const authorImg = resolveMediaUrl(selectedClaim.creator?.userProfile?.profilePicture || selectedClaim.creator?.avatar) || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&q=80';
+   const authorImg = getAvatarUrl(selectedClaim.creator);
    const dateObj = selectedClaim.createdAt ? new Date(selectedClaim.createdAt) : new Date();
    const dateStr = dateObj.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 
@@ -82,11 +90,11 @@ export default function ClaimWorkspace({
                <div className="flex items-center gap-3">
                   <div className="flex items-center gap-1.5 bg-amber-50 px-2.5 py-1 rounded-md border border-amber-100">
                      {isCreator && <Crown size={14} className="text-amber-500" />}
-                     <div className="text-[10px] font-bold text-amber-600 uppercase tracking-wider">{isCreator ? 'MAIN CLAIM' : 'CLAIM'}</div>
+                     <div className="text-[10px] font-bold text-amber-600 uppercase tracking-wider">দাবি</div>
                   </div>
                   <div className="text-slate-300 font-light">|</div>
                   <div className="text-sm text-slate-500 font-medium">
-                     Claim #{(claims.findIndex((c: any) => c.id === selectedClaim.id) + 1) || 1} of {claims.length}
+                     দাবি #{(claims.findIndex((c: any) => c.id === selectedClaim.id) + 1) || 1} of {claims.length}
                   </div>
                </div>
 
@@ -210,46 +218,48 @@ export default function ClaimWorkspace({
                   </div>
 
                   <div className="flex items-center gap-5 text-sm text-slate-700 font-semibold">
-                     <div className="flex items-center gap-1.5" title="Evidence"><FileText size={16} className="text-slate-400" /> <span>{evidenceCount}</span></div>
-                     <div className="flex items-center gap-1.5" title="Sources"><LinkIcon size={16} className="text-slate-400" /> <span>{sourcesCount}</span></div>
-                     <div className="flex items-center gap-1.5" title="Opinions"><MessageSquare size={16} className="text-slate-400" /> <span>{opinionsCount}</span></div>
-                     <div className="flex items-center gap-1.5" title="Discussion"><MessageCircle size={16} className="text-slate-400" /> <span>{discussionsCount}</span></div>
+                     <div className="flex items-center gap-1.5" title="তথ্য-প্রমাণ"><FileText size={16} className="text-slate-400" /> <span>{evidenceCount}</span></div>
+                     <div className="flex items-center gap-1.5" title="উৎস"><LinkIcon size={16} className="text-slate-400" /> <span>{sourcesCount}</span></div>
+                     <div className="flex items-center gap-1.5" title="মতামত"><MessageSquare size={16} className="text-slate-400" /> <span>{opinionsCount}</span></div>
+                     <div className="flex items-center gap-1.5" title="আলোচনা"><MessageCircle size={16} className="text-slate-400" /> <span>{discussionsCount}</span></div>
                      <button className="text-slate-400 ml-2 hover:text-slate-600 transition"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-5 h-5"><circle cx="12" cy="5" r="1" /><circle cx="12" cy="12" r="1" /><circle cx="12" cy="19" r="1" /></svg></button>
                   </div>
                </div>
 
                {/* Mini Opinion Section (Inline) */}
-               <div className="mt-6 pt-5 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                  <div className="text-[13px] font-semibold text-slate-600">এই দাবিটি নিয়ে আপনার মতামত কী?</div>
-                  <div className="flex flex-wrap items-center gap-2">
-                     <button
-                        onClick={() => setActiveTab('Opinions')}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 font-bold text-xs transition"
-                     >
-                        🟢 সমর্থন
-                     </button>
-                     <button
-                        onClick={() => setActiveTab('Opinions')}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 font-bold text-xs transition"
-                     >
-                        🔴 আপত্তি
-                     </button>
-                     <button
-                        onClick={() => setActiveTab('Opinions')}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 font-bold text-xs transition"
-                     >
-                        🟡 নিশ্চিত নই
-                     </button>
+               {isAuthenticated && (
+                  <div className="mt-6 pt-5 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                     <div className="text-[13px] font-semibold text-slate-600">এই দাবিটি নিয়ে আপনার মতামত কী?</div>
+                     <div className="flex flex-wrap items-center gap-2">
+                        <button
+                           onClick={() => setActiveTab('Opinions')}
+                           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 font-bold text-xs transition"
+                        >
+                           🟢 সমর্থন
+                        </button>
+                        <button
+                           onClick={() => setActiveTab('Opinions')}
+                           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 font-bold text-xs transition"
+                        >
+                           🔴 আপত্তি
+                        </button>
+                        <button
+                           onClick={() => setActiveTab('Opinions')}
+                           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 font-bold text-xs transition"
+                        >
+                           🟡 নিশ্চিত নই
+                        </button>
+                     </div>
                   </div>
-               </div>
+               )}
             </div>
 
             {/* 3. Sub-Navigation Tabs */}
             <div className="flex flex-wrap gap-3 mb-6 border-b-2 border-transparent">
                {[
-                  { id: 'Evidence', label: 'Evidence & Sources', icon: <FileText size={16} />, count: evidenceCount + sourcesCount },
-                  { id: 'Opinions', label: 'Opinions', icon: <MessageSquare size={16} />, count: opinionsCount },
-                  { id: 'Discussion', label: 'Discussion', icon: <MessageCircle size={16} />, count: discussionsCount },
+                  { id: 'Evidence', label: 'তথ্য-প্রমাণ ও উৎস', icon: <FileText size={16} />, count: evidenceCount + sourcesCount },
+                  { id: 'Opinions', label: 'সবার মতামত', icon: <MessageSquare size={16} />, count: opinionsCount },
+                  { id: 'Discussion', label: 'আলোচনা', icon: <MessageCircle size={16} />, count: discussionsCount },
                ].map(tab => (
                   <button
                      key={tab.id}
@@ -272,7 +282,7 @@ export default function ClaimWorkspace({
             <div className="pt-4">
                {activeTab === 'Evidence' && (
                   <div>
-                     {!isAddEvidenceOpen && (
+                     {isCaseCreator && !isAddEvidenceOpen && (
                         <div
                            onClick={() => setIsAddEvidenceOpen(true)}
                            className="mb-6 flex items-center gap-3 bg-white border border-slate-200 p-2 sm:p-2.5 rounded-2xl cursor-text shadow-sm hover:border-slate-300 hover:shadow transition group"
@@ -293,12 +303,14 @@ export default function ClaimWorkspace({
                         </div>
                      )}
 
-                     <AddEvidenceForm
-                        isOpen={isAddEvidenceOpen}
-                        onClose={() => setIsAddEvidenceOpen(false)}
-                        caseId={caseData.id}
-                        claimId={selectedClaim.id}
-                     />
+                     {isCaseCreator && (
+                        <AddEvidenceForm
+                           isOpen={isAddEvidenceOpen}
+                           onClose={() => setIsAddEvidenceOpen(false)}
+                           caseId={caseData.id}
+                           claimId={selectedClaim.id}
+                        />
+                     )}
 
                      <EvidenceSection caseData={{ ...caseData, claims: [selectedClaim] } as any} onAddEvidenceClick={() => setIsAddEvidenceOpen(true)} />
                   </div>

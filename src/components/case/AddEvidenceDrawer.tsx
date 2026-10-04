@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { X, Paperclip, Link as LinkIcon, Camera, FileText, Plus } from 'lucide-react';
 import { useAddEvidenceMutation, useAddCaseEvidenceMutation } from '@/redux/feature/case/case.reducer';
+import { useSelector } from 'react-redux';
+import { RootState } from '@/redux/store';
 
 interface AddEvidenceDrawerProps {
   isOpen: boolean;
@@ -21,8 +23,9 @@ export default function AddEvidenceForm({ isOpen, onClose, caseId, claimId, isMo
   const [sourceUrls, setSourceUrls] = useState<string[]>(['']);
   const [relationship, setRelationship] = useState('SUPPORTS');
   const [showLinkInput, setShowLinkInput] = useState(false);
+  const { isAuthenticated } = useSelector((state: RootState) => state.auth);
 
-  if (!isOpen) return null;
+  if (!isOpen || !isAuthenticated) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

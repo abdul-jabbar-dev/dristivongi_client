@@ -4,12 +4,13 @@ import Link from 'next/link';
 import { Plus, FileText, Loader2, Video, Image as ImageIcon, Smile } from 'lucide-react';
 import CaseCard from '@/components/CaseCard';
 import { useNewsFeedQuery } from '@/redux/feature/case/case.reducer';
+import { useGetUserProfileQuery } from '@/redux/feature/user/user.reducer';
 import { TCaseType } from '@/redux/feature/case/case.type';
 import LeftSidebar from '@/components/newsfeed/LeftSidebar';
 import RightSidebar from '@/components/newsfeed/RightSidebar';
 import { useSelector } from 'react-redux';
 import { RootState } from '@/redux/store';
-import { resolveMediaUrl } from '@/lib/utils';
+import { resolveMediaUrl , getAvatarUrl} from '@/lib/utils';
 import CreateCaseInline from '@/components/case/CreateCaseInline';
 import { useSearchParams, useRouter } from 'next/navigation';
 
@@ -17,11 +18,16 @@ export default function NewsfeedPage() {
   const searchParams = useSearchParams();
   const tagParam = searchParams.get('tag') || undefined;
 
-  const { data: responseData, isLoading, isError, error, refetch } = useNewsFeedQuery(tagParam);
+  const { data: responseData, isLoading, isError, error, refetch } = useNewsFeedQuery(tagParam ? { tag: tagParam } : undefined);
   const [activeTab, setActiveTab] = useState('আপনার জন্য');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const user = useSelector((state: RootState) => state.auth.user);
-  const userImg = resolveMediaUrl(user?.userProfile?.profilePicture || user?.avatar) || 'https://i.pravatar.cc/150';
+  const { isAuthenticated } = useSelector((state: RootState) => state.auth);
+  
+  const { data: profileResponse } = useGetUserProfileQuery('me', { skip: !isAuthenticated });
+  const mergedUser = user ? { ...user, userProfile: profileResponse?.data?.userProfile } : null;
+  
+  const userImg = getAvatarUrl(mergedUser);
 
   const casesList: TCaseType[] = responseData?.data || [];
 
@@ -54,24 +60,26 @@ export default function NewsfeedPage() {
             </div>
 
             {/* Create Case Composer - Facebook Style */}
-            {!isModalOpen ? (
-              <div className="bg-white border border-slate-200 rounded-xl p-3 sm:p-4 shadow-sm flex flex-col gap-3 transition-all duration-300">
-                <div className="flex gap-3 items-center">
-                  <img src={userImg} alt="User" className="w-10 h-10 rounded-full object-cover shrink-0 border border-slate-100" />
-                  <button onClick={() => setIsModalOpen(true)} className="flex-1 bg-slate-100 hover:bg-slate-200 transition px-4 py-2.5 rounded-full text-slate-500 cursor-pointer text-sm text-left">
-                    আপনার চারপাশে কী ঘটছে, {user?.fullName?.split(' ')[0] || user?.userName || 'নাগরিক'}?
-                  </button>
+            {isAuthenticated && (
+              !isModalOpen ? (
+                <div className="bg-white border border-slate-200 rounded-xl p-3 sm:p-4 shadow-sm flex flex-col gap-3 transition-all duration-300">
+                  <div className="flex gap-3 items-center">
+                    <img src={userImg} alt="User" className="w-10 h-10 rounded-full object-cover shrink-0 border border-slate-100" />
+                    <button onClick={() => setIsModalOpen(true)} className="flex-1 bg-slate-100 hover:bg-slate-200 transition px-4 py-2.5 rounded-full text-slate-500 cursor-pointer text-sm text-left">
+                      আপনার চারপাশে কী ঘটছে, {user?.fullName?.split(' ')[0] || user?.userName || 'নাগরিক'}?
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ) : (
-              <CreateCaseInline
-                imgUrl={userImg}
-                onClose={() => setIsModalOpen(false)}
-                onSuccess={() => {
-                  setIsModalOpen(false);
-                  refetch();
-                }}
-              />
+              ) : (
+                <CreateCaseInline
+                  imgUrl={userImg}
+                  onClose={() => setIsModalOpen(false)}
+                  onSuccess={() => {
+                    setIsModalOpen(false);
+                    refetch();
+                  }}
+                />
+              )
             )}
 
             {isLoading && (
