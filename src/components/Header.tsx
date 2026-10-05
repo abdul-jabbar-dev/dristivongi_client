@@ -5,7 +5,7 @@ import { Search, Bell, LayoutDashboard, Compass, MapPin, Briefcase, Bookmark, Pl
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '@/redux/store';
 import { logout } from '@/redux/feature/auth/auth.slice';
-import { useLogoutApiMutation, useGetUserProfileQuery } from '@/redux/feature/user/user.reducer';
+import { useLogoutApiMutation } from '@/redux/feature/user/user.reducer';
 import { getAvatarUrl } from '@/lib/utils';
 
 export default function Header() {
@@ -14,9 +14,8 @@ export default function Header() {
   const dispatch = useDispatch();
   const { user, isAuthenticated } = useSelector((state: RootState) => state.auth);
   const [logoutApi] = useLogoutApiMutation();
-  const { data: profileResponse } = useGetUserProfileQuery('me', { skip: !isAuthenticated });
-  
-  const mergedUser = user ? { ...user, userProfile: profileResponse?.data?.userProfile } : null;
+
+  console.log("[DEBUG HEADER USER]:", JSON.stringify(user, null, 2));
 
   const handleLogout = async () => {
     try {
@@ -27,7 +26,6 @@ export default function Header() {
   };
 
   const username = user?.fullName || 'User';
-  const initial = username.charAt(0).toUpperCase();
 
   const NavItem = ({ icon, path, active }: { icon: React.ReactNode, path: string, active: boolean }) => (
     <button 
@@ -92,11 +90,7 @@ export default function Header() {
                 className="w-10 h-10 rounded-full bg-slate-800 text-white flex items-center justify-center font-bold text-sm border-2 border-transparent group-hover:border-slate-200 transition"
                 onClick={() => router.push(user.userName ? `/profile/${user.userName}` : '/profile/me')}
               >
-                {mergedUser?.userProfile?.profilePicture || mergedUser?.avatar ? (
-                   <img src={getAvatarUrl(mergedUser)} alt="Avatar" className="w-full h-full rounded-full object-cover" />
-                ) : (
-                   initial
-                )}
+                 <img src={getAvatarUrl(user)} alt="Avatar" className="w-full h-full rounded-full object-cover" />
               </div>
                <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-xl shadow-lg border border-slate-200 hidden group-hover:block z-50 py-1">
                  <div className="px-4 py-2 border-b border-slate-100">

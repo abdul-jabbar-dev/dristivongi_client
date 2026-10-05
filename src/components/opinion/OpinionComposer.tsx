@@ -1,9 +1,10 @@
 import React, { useRef, useState } from 'react';
-import { Camera, Video, Link as LinkIcon, Smile, X, Plus } from 'lucide-react';
+import { Camera, Video, Link as LinkIcon, Smile, X, Plus, Shield } from 'lucide-react';
 import { useCreateOpinionMutation } from '@/redux/feature/opinion/opinion.reducer';
 import { useSelector } from 'react-redux';
 import { RootState } from '@/redux/store';
 import { resolveMediaUrl , getAvatarUrl} from '@/lib/utils';
+import AnonymousToggle from '../common/AnonymousToggle';
 
 interface Source {
   title: string;
@@ -14,6 +15,7 @@ export default function OpinionComposer({ targetType, targetId }: { targetType: 
   const [createOpinion, { isLoading: isCreatingOpinion }] = useCreateOpinionMutation();
   const { user, isAuthenticated } = useSelector((state: RootState) => state.auth);
   const [opinionContent, setOpinionContent] = useState('');
+  const [isAnonymous, setIsAnonymous] = useState(false);
 
   if (!isAuthenticated) return null;
   const getOptions = () => {
@@ -66,6 +68,7 @@ export default function OpinionComposer({ targetType, targetId }: { targetType: 
       targetId,
       content: opinionContent,
       value: opinionValue,
+      isAnonymous,
       sources: opinionSources.map(s => ({
         ...s,
         externalSourceType: 'URL',
@@ -94,10 +97,15 @@ export default function OpinionComposer({ targetType, targetId }: { targetType: 
     }
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
-      const filesArray = Array.from(e.target.files);
-      setOpinionFiles(prev => [...prev, ...filesArray]);
+      try {
+        const { processFilesForUpload } = await import('@/lib/image-processor');
+        const processedFiles = await processFilesForUpload(Array.from(e.target.files));
+        setOpinionFiles(prev => [...prev, ...processedFiles]);
+      } catch (err: any) {
+        alert(err.message || 'Image processing failed');
+      }
     }
   };
 
@@ -127,10 +135,22 @@ export default function OpinionComposer({ targetType, targetId }: { targetType: 
   };
 
   return (
-    <div className="bg-white border border-slate-200 rounded-xl p-4 sm:p-5 shadow-sm">
+    <div className={`border rounded-xl p-4 sm:p-5 shadow-sm transition-colors ${isAnonymous ? 'bg-slate-50 border-slate-300' : 'bg-white border-slate-200'}`}>
       <div className="flex gap-3 sm:gap-4">
-        <img src={getAvatarUrl(user)} alt="User" className="w-10 h-10 rounded-full shrink-0 border border-slate-200 object-cover" />
+        {isAnonymous ? (
+           <div className="w-10 h-10 rounded-full bg-slate-200 border border-slate-300 flex items-center justify-center text-slate-600 shrink-0">
+              <Shield size={18} />
+           </div>
+        ) : (
+           <img src={getAvatarUrl(user)} alt="User" className="w-10 h-10 rounded-full shrink-0 border border-slate-200 object-cover" />
+        )}
         <div className="flex-1">
+          <div className="flex justify-between items-center mb-2">
+             <div className="text-sm font-bold text-slate-700">
+                {isAnonymous ? 'Anonymous Mode' : 'মতামত যোগ করুন'}
+             </div>
+             <AnonymousToggle isAnonymous={isAnonymous} onChange={setIsAnonymous} />
+          </div>
           <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-lg p-2 px-3 focus-within:border-slate-400 focus-within:ring-1 focus-within:ring-slate-400 transition">
             <input 
               type="text" 
@@ -199,13 +219,15 @@ export default function OpinionComposer({ targetType, targetId }: { targetType: 
                 <option key={opt.value} value={opt.value}>{opt.label}</option>
               ))}
             </select>
-            <button 
+            <div className="flex items-center gap-3">
+              <button  
               onClick={handlePostOpinion} 
               disabled={isCreatingOpinion}
               className="bg-slate-600 text-white px-5 py-1.5 rounded-lg text-sm font-bold shadow-sm hover:bg-slate-700 transition disabled:opacity-50"
             >
               {isCreatingOpinion ? 'পোস্টিং...' : 'পোস্ট'}
             </button>
+            </div>
           </div>
         </div>
       </div>

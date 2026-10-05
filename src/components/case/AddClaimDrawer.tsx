@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, Plus, Trash2, Camera, Link as LinkIcon, FileText } from 'lucide-react';
 import { useCreateClaimMutation } from '@/redux/feature/case/case.reducer';
+import AnonymousToggle from '../common/AnonymousToggle';
 
 interface AddClaimDrawerProps {
   isOpen: boolean;
@@ -11,6 +12,7 @@ interface AddClaimDrawerProps {
 export default function AddClaimDrawer({ isOpen, onClose, caseId }: AddClaimDrawerProps) {
   const [createClaim, { isLoading }] = useCreateClaimMutation();
   const [title, setTitle] = useState('');
+  const [isAnonymous, setIsAnonymous] = useState(false);
   
   const [evidence, setEvidence] = useState<{ title: string; type: string; relationship: string; files: File[] }[]>([]);
   const [sources, setSources] = useState<{ type: string; name: string; link: string; date: string; relationship: string }[]>([]);
@@ -28,6 +30,7 @@ export default function AddClaimDrawer({ isOpen, onClose, caseId }: AddClaimDraw
     try {
       const payload = {
         title: titlePlain,
+        isAnonymous,
         evidence: evidence.map(ev => ({
           title: ev.title,
           type: ev.type,
@@ -83,12 +86,19 @@ export default function AddClaimDrawer({ isOpen, onClose, caseId }: AddClaimDraw
       <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-sm" onClick={onClose}></div>
       
       {/* Drawer */}
-      <div className="relative w-full max-w-lg bg-white h-full shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
+      <div className={`relative w-full max-w-lg h-full shadow-2xl flex flex-col animate-in slide-in-from-right duration-300 transition-colors ${isAnonymous ? 'bg-slate-50' : 'bg-white'}`}>
         
-        <div className="flex items-center justify-between p-5 border-b border-slate-100 bg-slate-50/50">
+        <div className={`flex items-start justify-between p-5 border-b transition-colors ${isAnonymous ? 'border-slate-200 bg-slate-100/50' : 'border-slate-100 bg-slate-50/50'}`}>
           <div>
-             <h2 className="text-xl font-bold text-slate-900">আরেকটি দাবি যোগ করুন</h2>
-             <p className="text-xs text-slate-500 mt-1 leading-relaxed">এই বিষয় নিয়ে কোনো দাবি বা ভিন্ন মত থাকলে যোগ করতে পারেন।<br/>তথ্য ও প্রমাণ দিলে অন্যরা বুঝতে সুবিধা পাবে।</p>
+             <h2 className={`text-xl font-bold ${isAnonymous ? 'text-slate-800' : 'text-slate-900'}`}>
+               {isAnonymous ? 'Anonymous Claim' : 'আরেকটি দাবি যোগ করুন'}
+             </h2>
+             <p className={`text-xs mt-1 leading-relaxed ${isAnonymous ? 'text-slate-500' : 'text-slate-500'}`}>
+               {isAnonymous ? 'Your identity will not be shown publicly.' : 'এই বিষয় নিয়ে কোনো দাবি বা ভিন্ন মত থাকলে যোগ করতে পারেন।\nতথ্য ও প্রমাণ দিলে অন্যরা বুঝতে সুবিধা পাবে।'}
+             </p>
+             <div className="mt-3">
+               <AnonymousToggle isAnonymous={isAnonymous} onChange={setIsAnonymous} />
+             </div>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-slate-200 rounded-full transition text-slate-500">
             <X size={20} />
@@ -144,7 +154,17 @@ export default function AddClaimDrawer({ isOpen, onClose, caseId }: AddClaimDraw
                           </div>
                           <div>
                              <label className="block text-[10px] font-bold text-slate-700 mb-1">ফাইল আপলোড (একাধিক ছবি/ভিডিও/নথি)</label>
-                             <input type="file" multiple accept="image/*,video/*,application/pdf" onChange={e => { const newEv = [...evidence]; newEv[idx].files = Array.from(e.target.files || []); setEvidence(newEv); }} className="text-xs text-slate-500 file:mr-4 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-slate-50 file:text-slate-700 hover:file:bg-slate-100" />
+                             <input type="file" multiple accept="image/*,video/*,application/pdf" onChange={async e => {
+                                 try {
+                                    const { processFilesForUpload } = await import('@/lib/image-processor');
+                                    const processedFiles = await processFilesForUpload(Array.from(e.target.files || []));
+                                    const newEv = [...evidence]; 
+                                    newEv[idx].files = [...newEv[idx].files, ...processedFiles]; 
+                                    setEvidence(newEv);
+                                 } catch (err: any) {
+                                    alert(err.message || 'Image processing failed');
+                                 }
+                             }} className="text-xs text-slate-500 file:mr-4 file:py-1 file:px-3 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-slate-50 file:text-slate-700 hover:file:bg-slate-100" />
                              {ev.files.length > 0 && (
                                 <div className="mt-2 space-y-2">
                                    <p className="text-[10px] text-slate-600">{ev.files.length}টি ফাইল নির্বাচিত:</p>
@@ -237,7 +257,7 @@ export default function AddClaimDrawer({ isOpen, onClose, caseId }: AddClaimDraw
           </form>
         </div>
 
-        <div className="p-5 border-t border-slate-100 bg-white flex justify-between gap-3 shrink-0">
+        <div className={`p-5 border-t flex justify-between gap-3 shrink-0 transition-colors ${isAnonymous ? 'border-slate-200 bg-slate-50/50' : 'border-slate-100 bg-white'}`}>
            <button type="button" onClick={onClose} className="px-5 py-2.5 text-sm font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition w-1/3">বাতিল</button>
            <button type="submit" form="add-claim-form" disabled={isLoading} className="px-5 py-2.5 text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-lg transition w-2/3 shadow-sm flex items-center justify-center gap-2 disabled:opacity-50">
              {isLoading ? 'প্রকাশ করা হচ্ছে...' : 'দাবি প্রকাশ করুন'}

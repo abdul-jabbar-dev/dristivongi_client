@@ -1,13 +1,32 @@
 import React from 'react';
 import Link from 'next/link';
 import { useSearchTagsQuery } from '@/redux/feature/tag/tag.reducer';
+import { useNewsFeedQuery } from '@/redux/feature/case/case.reducer';
 import { useSearchParams } from 'next/navigation';
+import { getAvatarUrl } from '@/lib/utils';
 
 export default function RightSidebar() {
   const { data: tagsData } = useSearchTagsQuery('');
   const searchParams = useSearchParams();
   const currentTag = searchParams.get('tag');
+  const { data: newsFeedData } = useNewsFeedQuery(currentTag ? { tag: currentTag } : undefined);
   
+  const cases = newsFeedData?.data || [];
+  
+  // Extract data for sidebar
+  const activeCases = cases.slice(0, 3);
+  const similarCases = cases.slice(3, 6);
+  const nearbyCases = cases.filter(c => c.location).slice(0, 3);
+
+  // Extract unique authors
+  const authorsMap = new Map();
+  cases.forEach(c => {
+     if (c.author && c.author.id && !authorsMap.has(c.author.id)) {
+        authorsMap.set(c.author.id, c.author);
+     }
+  });
+  const involvedPeople = Array.from(authorsMap.values()).slice(0, 3);
+
   return (
     <div className="w-full flex flex-col gap-4 sticky top-20">
       
@@ -43,46 +62,46 @@ export default function RightSidebar() {
       </div>
 
       {/* Case at a Glance */}
-      <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
-        <h3 className="text-sm font-bold text-slate-800 mb-3 border-b border-slate-100 pb-2">এক নজরে বিষয়টি</h3>
-        <div className="space-y-3">
-          <div className="flex justify-between items-start text-xs">
-            <div>
-              <p className="font-semibold text-slate-700">সক্রিয় প্রধান বিষয়সমূহ</p>
-              <p className="text-slate-500 mt-1 cursor-pointer hover:underline">ঢাকা মেট্রো সম্প্রসারণ</p>
-              <p className="text-slate-500 mt-1 cursor-pointer hover:underline">বুড়িগঙ্গা নদীদূষণ</p>
-              <p className="text-slate-500 mt-1 cursor-pointer hover:underline">মোহাম্মদ আলী ভবনের বা...</p>
-            </div>
-            <div className="flex flex-col gap-1 items-end">
-               <span className="bg-amber-100 text-amber-700 px-2 py-0.5 rounded text-[10px] font-bold">তদন্তাধীন</span>
-               <span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded text-[10px] font-bold">পদক্ষেপ চলছে</span>
-               <span className="bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded text-[10px] font-bold">পদক্ষেপ চলছে</span>
-            </div>
-          </div>
-        </div>
-      </div>
+      {activeCases.length > 0 && (
+         <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+           <h3 className="text-sm font-bold text-slate-800 mb-3 border-b border-slate-100 pb-2">এক নজরে বিষয়টি</h3>
+           <div className="space-y-3">
+             <div className="flex justify-between items-start text-xs">
+               <div className="flex-1 pr-2 overflow-hidden">
+                 <p className="font-semibold text-slate-700 mb-2">সক্রিয় প্রধান বিষয়সমূহ</p>
+                 {activeCases.map(c => (
+                    <Link href={`/case/${c.id}`} key={c.id} className="block text-slate-500 mt-1.5 hover:underline truncate" title={c.title}>
+                       {c.title.length > 30 ? c.title.substring(0, 30) + '...' : c.title}
+                    </Link>
+                 ))}
+               </div>
+               <div className="flex flex-col gap-1 items-end mt-6 shrink-0">
+                 {activeCases.map(c => (
+                    <span key={c.id} className={`${c.caseStatus === 'CLOSED' ? 'bg-slate-100 text-slate-700' : 'bg-emerald-100 text-emerald-700'} px-2 py-0.5 rounded text-[10px] font-bold whitespace-nowrap`}>
+                       {c.caseStatus === 'OPEN' ? 'তদন্তাধীন' : c.caseStatus === 'IN_PROGRESS' ? 'পদক্ষেপ চলছে' : 'মীমাংসিত'}
+                    </span>
+                 ))}
+               </div>
+             </div>
+           </div>
+         </div>
+      )}
 
       {/* People Involved */}
-      <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
-        <h3 className="text-sm font-bold text-slate-800 mb-3 border-b border-slate-100 pb-2">জড়িত ব্যক্তিবর্গ</h3>
-        <div className="grid grid-cols-3 gap-2">
-           <div className="flex flex-col items-center text-center">
-              <img src="https://i.pravatar.cc/150?u=1" className="w-10 h-10 rounded-full border border-slate-200 mb-1" alt="" />
-              <p className="text-[10px] font-bold text-slate-700 leading-tight">তানভীর হাসান</p>
-              <p className="text-[9px] text-slate-500">ব্যবহারকারী</p>
+      {involvedPeople.length > 0 && (
+         <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+           <h3 className="text-sm font-bold text-slate-800 mb-3 border-b border-slate-100 pb-2">জড়িত ব্যক্তিবর্গ</h3>
+           <div className="grid grid-cols-3 gap-2">
+              {involvedPeople.map((person: any) => (
+                 <Link href={`/profile/${person.userName || person.id}`} key={person.id} className="flex flex-col items-center text-center group cursor-pointer">
+                    <img src={getAvatarUrl(person)} className="w-10 h-10 object-cover rounded-full border border-slate-200 mb-1 group-hover:border-slate-400 transition" alt={person.fullName} />
+                    <p className="text-[10px] font-bold text-slate-700 leading-tight group-hover:text-blue-600 transition truncate w-full px-1">{person.fullName || person.userName}</p>
+                    <p className="text-[9px] text-slate-500">ব্যবহারকারী</p>
+                 </Link>
+              ))}
            </div>
-           <div className="flex flex-col items-center text-center">
-              <img src="https://i.pravatar.cc/150?u=2" className="w-10 h-10 rounded-full border border-slate-200 mb-1" alt="" />
-              <p className="text-[10px] font-bold text-slate-700 leading-tight">আয়েশা রহমান</p>
-              <p className="text-[9px] text-slate-500">পরিবেশ বিশেষজ্ঞ</p>
-           </div>
-           <div className="flex flex-col items-center text-center">
-              <img src="https://i.pravatar.cc/150?u=3" className="w-10 h-10 rounded-full border border-slate-200 mb-1" alt="" />
-              <p className="text-[10px] font-bold text-slate-700 leading-tight">মোহাম্মদ আলী</p>
-              <p className="text-[9px] text-slate-500">নগর পরিকল্পনাবিদ</p>
-           </div>
-        </div>
-      </div>
+         </div>
+      )}
 
       {/* Organizations */}
       <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
@@ -111,23 +130,37 @@ export default function RightSidebar() {
       </div>
 
       {/* Similar Cases */}
-      <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
-        <h3 className="text-sm font-bold text-slate-800 mb-3 border-b border-slate-100 pb-2">অনুরূপ বিষয়সমূহ</h3>
-        <ul className="space-y-2 text-xs text-slate-700">
-           <li className="cursor-pointer hover:text-slate-600 truncate">ঢাকা মেট্রো সম্প্রসারণ, ইনারবেড়িবাঁধ প্র...</li>
-           <li className="cursor-pointer hover:text-slate-600 truncate">বুড়িগঙ্গা নদীদূষণ, ইনারবেড়িবাঁধ প্রকল্পের...</li>
-           <li className="cursor-pointer hover:text-slate-600 truncate">ঢাকা এলিভেটেড এক্সপ্রেসওয়ে, পরিবেশ দূষণ...</li>
-        </ul>
-      </div>
+      {similarCases.length > 0 && (
+         <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+           <h3 className="text-sm font-bold text-slate-800 mb-3 border-b border-slate-100 pb-2">অনুরূপ বিষয়সমূহ</h3>
+           <ul className="space-y-2 text-xs text-slate-700">
+              {similarCases.map(c => (
+                 <li key={c.id} className="truncate">
+                    <Link href={`/case/${c.id}`} className="cursor-pointer hover:text-slate-600 hover:underline" title={c.title}>
+                       {c.title}
+                    </Link>
+                 </li>
+              ))}
+           </ul>
+         </div>
+      )}
 
       {/* Nearby Cases */}
-      <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
-        <h3 className="text-sm font-bold text-slate-800 mb-1 border-b border-slate-100 pb-2">কাছাকাছি বিষয়সমূহ</h3>
-        <p className="text-[10px] text-slate-500 mb-2">Based on location → local problems</p>
-        <ul className="space-y-2 text-xs text-slate-700">
-           <li className="cursor-pointer hover:text-slate-600 truncate">ঢাকা প্রবাহের লেক; লেকা পরায়লিম...</li>
-        </ul>
-      </div>
+      {nearbyCases.length > 0 && (
+         <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+           <h3 className="text-sm font-bold text-slate-800 mb-1 border-b border-slate-100 pb-2">কাছাকাছি বিষয়সমূহ</h3>
+           <p className="text-[10px] text-slate-500 mb-2">Based on location → local problems</p>
+           <ul className="space-y-2 text-xs text-slate-700">
+              {nearbyCases.map(c => (
+                 <li key={c.id} className="truncate">
+                    <Link href={`/case/${c.id}`} className="cursor-pointer hover:text-slate-600 hover:underline" title={c.title}>
+                       {c.title}
+                    </Link>
+                 </li>
+              ))}
+           </ul>
+         </div>
+      )}
 
     </div>
   );

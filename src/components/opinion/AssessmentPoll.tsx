@@ -4,6 +4,7 @@ import { useSelector } from 'react-redux';
 import { RootState } from '@/redux/store';
 import { resolveMediaUrl } from '@/lib/utils';
 import { CheckCircle2, User, AlertCircle } from 'lucide-react';
+import AnonymousToggle from '../common/AnonymousToggle';
 
 export default function AssessmentPoll({ claimId }: { claimId: string }) {
   const { data: assessmentResponse, isLoading } = useGetAssessmentsQuery(claimId);
@@ -65,8 +66,15 @@ export default function AssessmentPoll({ claimId }: { claimId: string }) {
         <>
           {/* USER SELECTION AREA */}
           {isAuthenticated && (!currentUserPosition || isChanging) && (
-            <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-              <p className="font-bold text-slate-700 mb-4">এই দাবিটি নিয়ে আপনার অবস্থান কী?</p>
+            <div className={`p-4 rounded-xl border transition-colors ${isAnonymous ? 'bg-slate-50 border-slate-300' : 'bg-slate-50 border-slate-200'}`}>
+              <div className="flex justify-between items-center mb-4">
+                 <p className={`font-bold ${isAnonymous ? 'text-slate-800' : 'text-slate-700'}`}>
+                    {isAnonymous ? 'Anonymous Mode' : 'এই দাবিটি নিয়ে আপনার অবস্থান কী?'}
+                 </p>
+                 {selectedGroup && (
+                    <AnonymousToggle isAnonymous={isAnonymous} onChange={setIsAnonymous} />
+                 )}
+              </div>
               
               {!selectedGroup ? (
                 <div className="flex flex-col gap-2">
@@ -119,17 +127,6 @@ export default function AssessmentPoll({ claimId }: { claimId: string }) {
                   
                   {selectedChoice && (
                     <div className="mt-4 pt-4 border-t border-slate-200">
-                      <p className="text-sm font-bold text-slate-700 mb-2">আপনার মতামত কীভাবে দেখানো হবে?</p>
-                      <div className="flex gap-4 mb-4">
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input type="radio" name="privacy" checked={!isAnonymous} onChange={() => setIsAnonymous(false)} />
-                          <span>👤 প্রকাশ্যে</span>
-                        </label>
-                        <label className="flex items-center gap-2 cursor-pointer">
-                          <input type="radio" name="privacy" checked={isAnonymous} onChange={() => setIsAnonymous(true)} />
-                          <span>🔒 গোপনীয়ভাবে</span>
-                        </label>
-                      </div>
                       
                       <div className="flex gap-2">
                         <button onClick={() => setSelectedGroup(null)} className="px-4 py-2 border border-slate-300 rounded-lg hover:bg-slate-100 transition">ফিরে যান</button>

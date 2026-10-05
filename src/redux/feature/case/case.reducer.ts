@@ -188,12 +188,22 @@ export const CASE_Api = createApi({
                 const patchResultDetails = dispatch(
                     CASE_Api.util.updateQueryData('caseDetails', caseId, (draft) => {
                         if (draft.data) {
+                            if (draft.data.stats) {
+                                const prevReaction = draft.data.reaction?.currentUserReaction;
+                                if (prevReaction === "SUPPORT") draft.data.stats.supportCount = Math.max(0, (draft.data.stats.supportCount || 0) - 1);
+                                if (prevReaction === "OPPOSE") draft.data.stats.opposeCount = Math.max(0, (draft.data.stats.opposeCount || 0) - 1);
+                                
+                                const newReaction = value === "NONE" ? null : value as "SUPPORT" | "OPPOSE";
+                                if (newReaction === "SUPPORT") draft.data.stats.supportCount = (draft.data.stats.supportCount || 0) + 1;
+                                if (newReaction === "OPPOSE") draft.data.stats.opposeCount = (draft.data.stats.opposeCount || 0) + 1;
+                            }
+
                             if (!draft.data.reaction) {
                                 draft.data.reaction = { support: 0, oppose: 0, total: 0, currentUserReaction: null };
                             }
                             const prevReaction = draft.data.reaction.currentUserReaction;
-                            if (prevReaction === "SUPPORT") draft.data.reaction.support--;
-                            if (prevReaction === "OPPOSE") draft.data.reaction.oppose--;
+                            if (prevReaction === "SUPPORT") draft.data.reaction.support = Math.max(0, draft.data.reaction.support - 1);
+                            if (prevReaction === "OPPOSE") draft.data.reaction.oppose = Math.max(0, draft.data.reaction.oppose - 1);
                             
                             const newReaction = value === "NONE" ? null : value as "SUPPORT" | "OPPOSE";
                             if (newReaction === "SUPPORT") draft.data.reaction.support++;
@@ -205,34 +215,54 @@ export const CASE_Api = createApi({
                     })
                 );
 
-                const patchResultFeed = dispatch(
-                    CASE_Api.util.updateQueryData('newsFeed', undefined as any, (draft) => {
-                        if (draft.data) {
-                            const caseItem = draft.data.find(c => c.id === caseId);
-                            if (caseItem) {
-                                if (!caseItem.reaction) {
-                                    caseItem.reaction = { support: 0, oppose: 0, total: 0, currentUserReaction: null };
+                const state = getState() as any;
+                const queries = state.caseApi?.queries || {};
+                const patches: any[] = [];
+
+                for (const [key, query] of Object.entries(queries)) {
+                    if (key.startsWith('newsFeed(') && (query as any)?.status === 'fulfilled') {
+                        const originalArgs = (query as any).originalArgs;
+                        const patch = dispatch(
+                            CASE_Api.util.updateQueryData('newsFeed', originalArgs, (draft) => {
+                                if (draft.data) {
+                                    const caseItem = draft.data.find(c => c.id === caseId);
+                                    if (caseItem) {
+                                        if (caseItem.stats) {
+                                            const prevReaction = caseItem.reaction?.currentUserReaction;
+                                            if (prevReaction === "SUPPORT") caseItem.stats.supportCount = Math.max(0, (caseItem.stats.supportCount || 0) - 1);
+                                            if (prevReaction === "OPPOSE") caseItem.stats.opposeCount = Math.max(0, (caseItem.stats.opposeCount || 0) - 1);
+                                            
+                                            const newReaction = value === "NONE" ? null : value as "SUPPORT" | "OPPOSE";
+                                            if (newReaction === "SUPPORT") caseItem.stats.supportCount = (caseItem.stats.supportCount || 0) + 1;
+                                            if (newReaction === "OPPOSE") caseItem.stats.opposeCount = (caseItem.stats.opposeCount || 0) + 1;
+                                        }
+
+                                        if (!caseItem.reaction) {
+                                            caseItem.reaction = { support: 0, oppose: 0, total: 0, currentUserReaction: null };
+                                        }
+                                        const prevReaction = caseItem.reaction.currentUserReaction;
+                                        if (prevReaction === "SUPPORT") caseItem.reaction.support = Math.max(0, caseItem.reaction.support - 1);
+                                        if (prevReaction === "OPPOSE") caseItem.reaction.oppose = Math.max(0, caseItem.reaction.oppose - 1);
+                                        
+                                        const newReaction = value === "NONE" ? null : value as "SUPPORT" | "OPPOSE";
+                                        if (newReaction === "SUPPORT") caseItem.reaction.support++;
+                                        if (newReaction === "OPPOSE") caseItem.reaction.oppose++;
+                                        
+                                        caseItem.reaction.currentUserReaction = newReaction;
+                                        caseItem.reaction.total = caseItem.reaction.support + caseItem.reaction.oppose;
+                                    }
                                 }
-                                const prevReaction = caseItem.reaction.currentUserReaction;
-                                if (prevReaction === "SUPPORT") caseItem.reaction.support--;
-                                if (prevReaction === "OPPOSE") caseItem.reaction.oppose--;
-                                
-                                const newReaction = value === "NONE" ? null : value as "SUPPORT" | "OPPOSE";
-                                if (newReaction === "SUPPORT") caseItem.reaction.support++;
-                                if (newReaction === "OPPOSE") caseItem.reaction.oppose++;
-                                
-                                caseItem.reaction.currentUserReaction = newReaction;
-                                caseItem.reaction.total = caseItem.reaction.support + caseItem.reaction.oppose;
-                            }
-                        }
-                    })
-                );
+                            })
+                        );
+                        patches.push(patch);
+                    }
+                }
 
                 try {
                     await queryFulfilled;
                 } catch {
                     patchResultDetails.undo();
-                    patchResultFeed.undo();
+                    patches.forEach(p => p.undo());
                 }
             },
             invalidatesTags: (result, error, arg) => [{ type: 'Case', id: arg.caseId }, 'CaseList'],

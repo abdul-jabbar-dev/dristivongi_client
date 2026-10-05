@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { Plus, FileText, Loader2, Video, Image as ImageIcon, Smile } from 'lucide-react';
 import CaseCard from '@/components/CaseCard';
 import { useNewsFeedQuery } from '@/redux/feature/case/case.reducer';
-import { useGetUserProfileQuery } from '@/redux/feature/user/user.reducer';
 import { TCaseType } from '@/redux/feature/case/case.type';
 import LeftSidebar from '@/components/newsfeed/LeftSidebar';
 import RightSidebar from '@/components/newsfeed/RightSidebar';
@@ -37,10 +36,7 @@ export default function NewsfeedPage() {
   const user = useSelector((state: RootState) => state.auth.user);
   const { isAuthenticated } = useSelector((state: RootState) => state.auth);
   
-  const { data: profileResponse } = useGetUserProfileQuery('me', { skip: !isAuthenticated });
-  const mergedUser = user ? { ...user, userProfile: profileResponse?.data?.userProfile } : null;
-  
-  const userImg = getAvatarUrl(mergedUser);
+  const userImg = getAvatarUrl(user);
 
   const casesList: TCaseType[] = (responseData?.data as any) || [];
 

@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Plus, X, MapPin, Grid, Image as ImageIcon, Video, FileText, Info, Globe, Send, FilePlus, Bold, Italic, List, Quote, Link, Hash } from 'lucide-react';
+import { Plus, X, MapPin, Grid, Image as ImageIcon, Video, FileText, Info, Globe, Send, FilePlus, Bold, Italic, List, Quote, Link, Hash, Shield } from 'lucide-react';
 import { useCreateCaseMutation, useImportUrlMutation } from '@/redux/feature/case/case.reducer';
 import { useSearchTagsQuery } from '@/redux/feature/tag/tag.reducer';
 import { sanitizePastedHtml } from '@/utils/sanitizePaste';
+import AnonymousToggle from '../common/AnonymousToggle';
 
 const MediaPreview = ({ file }: { file: File }) => {
   if (file.type.startsWith('image/')) {
@@ -62,6 +63,7 @@ export default function CreateCaseInline({ onClose, onSuccess, imgUrl }: { onClo
   const [title, setTitle] = useState('');
   const [location, setLocation] = useState('');
   const [category, setCategory] = useState('');
+  const [isAnonymous, setIsAnonymous] = useState(false);
 
   const [tagInput, setTagInput] = useState('');
   const [showTagSuggestions, setShowTagSuggestions] = useState(false);
@@ -69,7 +71,7 @@ export default function CreateCaseInline({ onClose, onSuccess, imgUrl }: { onClo
     skip: !tagInput || tagInput.length < 1,
   });
 
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [selectedFiles, setSelectedFiles] = useState<{file: File, state: string, previewUrl: string, error?: string}[]>([]);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [previewMediaIndex, setPreviewMediaIndex] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -102,9 +104,34 @@ export default function CreateCaseInline({ onClose, onSuccess, imgUrl }: { onClo
     setDraggedIndex(null);
   };
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
-      setSelectedFiles(prev => [...prev, ...Array.from(e.target.files!)]);
+      const filesArray = Array.from(e.target.files);
+      const newEntries = filesArray.map(f => ({
+         file: f,
+         state: f.type.startsWith('image/') ? 'processing' : 'idle',
+         previewUrl: URL.createObjectURL(f)
+      }));
+      
+      setSelectedFiles(prev => [...prev, ...newEntries]);
+
+      // Process images
+      for (let i = 0; i < filesArray.length; i++) {
+         const originalFile = filesArray[i];
+         if (originalFile.type.startsWith('image/')) {
+            try {
+               const { processImageToWebP } = await import('@/lib/image-processor');
+               const processed = await processImageToWebP(originalFile);
+               setSelectedFiles(prev => prev.map(entry => 
+                  entry.file === originalFile ? { file: processed.file, state: 'success', previewUrl: processed.previewUrl } : entry
+               ));
+            } catch (err: any) {
+               setSelectedFiles(prev => prev.map(entry => 
+                  entry.file === originalFile ? { file: originalFile, state: 'error', previewUrl: entry.previewUrl, error: err.message } : entry
+               ));
+            }
+         }
+      }
     }
   };
 
@@ -246,13 +273,15 @@ export default function CreateCaseInline({ onClose, onSuccess, imgUrl }: { onClo
     const payload = {
       title: plainText,
       titleHtml: htmlContent,
-      location: location.trim() ? location : "Not specified"
+      location: location.trim() ? location : "Not specified",
+      isAnonymous
     };
 
     const formData = new FormData();
     formData.append('data', JSON.stringify(payload));
-    selectedFiles.forEach(file => {
-      formData.append('caseMedia', file);
+    const validFiles = selectedFiles.filter(f => f.state !== 'error' && f.state !== 'processing');
+    validFiles.forEach(entry => {
+      formData.append('caseMedia', entry.file);
     });
 
     try {
@@ -265,22 +294,35 @@ export default function CreateCaseInline({ onClose, onSuccess, imgUrl }: { onClo
   };
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 shadow-[0_2px_10px_rgba(15,23,42,0.06)] animate-in slide-in-from-top-4 duration-300 overflow-hidden">
+    <div className={`rounded-xl border shadow-[0_2px_10px_rgba(15,23,42,0.06)] animate-in slide-in-from-top-4 duration-300 overflow-hidden transition-colors ${isAnonymous ? 'bg-slate-50 border-slate-300' : 'bg-white border-slate-200'}`}>
 
       {/* Header */}
-      <div className="flex justify-between items-start bg-blue-50/40 px-4 sm:px-5 py-3.5 border-b border-blue-100">
+      <div className={`flex justify-between items-start px-4 sm:px-5 py-3.5 border-b transition-colors ${isAnonymous ? 'bg-slate-100 border-slate-200' : 'bg-slate-50/50 border-slate-100'}`}>
         <div className="flex gap-2.5 items-start min-w-0">
-          <div className="mt-0.5 text-blue-600 shrink-0">
-            <img src={imgUrl} alt="User" className="w-10 h-10 rounded-full object-cover shrink-0 border border-slate-100" />
+          <div className="mt-0.5 shrink-0">
+            {isAnonymous ? (
+              <div className="w-10 h-10 rounded-full bg-slate-200 border border-slate-300 flex items-center justify-center text-slate-700">
+                 <Shield size={18} />
+              </div>
+            ) : (
+              <img src={imgUrl} alt="User" className="w-10 h-10 rounded-full object-cover shrink-0 border border-slate-100" />
+            )}
           </div>
           <div>
-            <h2 className="text-[15px] font-semibold text-slate-800 leading-5">নতুন বিষয় তুলুন</h2>
-            <p className="text-[11px] text-slate-500 mt-0.5 leading-4">আপনার এলাকার গুরুত্বপূর্ণ কোনো সমস্যা, ঘটনা বা জনস্বার্থের বিষয় শেয়ার করুন।</p>
+            <h2 className={`text-[15px] font-semibold leading-5 ${isAnonymous ? 'text-slate-800' : 'text-slate-800'}`}>
+              {isAnonymous ? 'Anonymous Mode' : 'নতুন বিষয় তুলুন'}
+            </h2>
+            <p className={`text-[11px] mt-0.5 leading-4 ${isAnonymous ? 'text-slate-500' : 'text-slate-500'}`}>
+              {isAnonymous ? 'Your identity will not be shown publicly.' : 'আপনার এলাকার গুরুত্বপূর্ণ কোনো সমস্যা, ঘটনা বা জনস্বার্থের বিষয় শেয়ার করুন।'}
+            </p>
           </div>
         </div>
-        <button onClick={onClose} className="text-slate-400 hover:text-slate-700 transition">
-          <X size={18} strokeWidth={1.8} />
-        </button>
+        <div className="flex items-center gap-4">
+          <AnonymousToggle isAnonymous={isAnonymous} onChange={setIsAnonymous} />
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-700 transition">
+            <X size={18} strokeWidth={1.8} />
+          </button>
+        </div>
       </div>
 
       {/* Body */}
@@ -370,33 +412,33 @@ export default function CreateCaseInline({ onClose, onSuccess, imgUrl }: { onClo
                     </button>
                     
                     {selectedFiles.length === 1 && (
-                      <DraggableGridItem index={0} file={selectedFiles[0]} handleDragStart={handleDragStart} handleDrop={handleDrop} setPreviewMediaIndex={setPreviewMediaIndex} className="max-h-[400px]" />
+                      <DraggableGridItem index={0} file={selectedFiles[0].file} handleDragStart={handleDragStart} handleDrop={handleDrop} setPreviewMediaIndex={setPreviewMediaIndex} className="max-h-[400px]" />
                     )}
 
                     {selectedFiles.length === 2 && (
                       <div className="grid grid-cols-2 gap-1 bg-white h-[300px]">
-                        <DraggableGridItem index={0} file={selectedFiles[0]} handleDragStart={handleDragStart} handleDrop={handleDrop} setPreviewMediaIndex={setPreviewMediaIndex} />
-                        <DraggableGridItem index={1} file={selectedFiles[1]} handleDragStart={handleDragStart} handleDrop={handleDrop} setPreviewMediaIndex={setPreviewMediaIndex} />
+                        <DraggableGridItem index={0} file={selectedFiles[0].file} handleDragStart={handleDragStart} handleDrop={handleDrop} setPreviewMediaIndex={setPreviewMediaIndex} />
+                        <DraggableGridItem index={1} file={selectedFiles[1].file} handleDragStart={handleDragStart} handleDrop={handleDrop} setPreviewMediaIndex={setPreviewMediaIndex} />
                       </div>
                     )}
 
                     {selectedFiles.length === 3 && (
                       <div className="grid grid-cols-2 gap-1 bg-white h-[350px]">
-                        <DraggableGridItem index={0} file={selectedFiles[0]} handleDragStart={handleDragStart} handleDrop={handleDrop} setPreviewMediaIndex={setPreviewMediaIndex} />
+                        <DraggableGridItem index={0} file={selectedFiles[0].file} handleDragStart={handleDragStart} handleDrop={handleDrop} setPreviewMediaIndex={setPreviewMediaIndex} />
                         <div className="grid grid-rows-2 gap-1 h-full">
-                          <DraggableGridItem index={1} file={selectedFiles[1]} handleDragStart={handleDragStart} handleDrop={handleDrop} setPreviewMediaIndex={setPreviewMediaIndex} />
-                          <DraggableGridItem index={2} file={selectedFiles[2]} handleDragStart={handleDragStart} handleDrop={handleDrop} setPreviewMediaIndex={setPreviewMediaIndex} />
+                          <DraggableGridItem index={1} file={selectedFiles[1].file} handleDragStart={handleDragStart} handleDrop={handleDrop} setPreviewMediaIndex={setPreviewMediaIndex} />
+                          <DraggableGridItem index={2} file={selectedFiles[2].file} handleDragStart={handleDragStart} handleDrop={handleDrop} setPreviewMediaIndex={setPreviewMediaIndex} />
                         </div>
                       </div>
                     )}
 
                     {selectedFiles.length === 4 && (
                       <div className="grid grid-rows-2 gap-1 bg-white h-[400px]">
-                        <DraggableGridItem index={0} file={selectedFiles[0]} handleDragStart={handleDragStart} handleDrop={handleDrop} setPreviewMediaIndex={setPreviewMediaIndex} />
+                        <DraggableGridItem index={0} file={selectedFiles[0].file} handleDragStart={handleDragStart} handleDrop={handleDrop} setPreviewMediaIndex={setPreviewMediaIndex} />
                         <div className="grid grid-cols-3 gap-1 h-full">
-                          <DraggableGridItem index={1} file={selectedFiles[1]} handleDragStart={handleDragStart} handleDrop={handleDrop} setPreviewMediaIndex={setPreviewMediaIndex} />
-                          <DraggableGridItem index={2} file={selectedFiles[2]} handleDragStart={handleDragStart} handleDrop={handleDrop} setPreviewMediaIndex={setPreviewMediaIndex} />
-                          <DraggableGridItem index={3} file={selectedFiles[3]} handleDragStart={handleDragStart} handleDrop={handleDrop} setPreviewMediaIndex={setPreviewMediaIndex} />
+                          <DraggableGridItem index={1} file={selectedFiles[1].file} handleDragStart={handleDragStart} handleDrop={handleDrop} setPreviewMediaIndex={setPreviewMediaIndex} />
+                          <DraggableGridItem index={2} file={selectedFiles[2].file} handleDragStart={handleDragStart} handleDrop={handleDrop} setPreviewMediaIndex={setPreviewMediaIndex} />
+                          <DraggableGridItem index={3} file={selectedFiles[3].file} handleDragStart={handleDragStart} handleDrop={handleDrop} setPreviewMediaIndex={setPreviewMediaIndex} />
                         </div>
                       </div>
                     )}
@@ -404,13 +446,13 @@ export default function CreateCaseInline({ onClose, onSuccess, imgUrl }: { onClo
                     {selectedFiles.length >= 5 && (
                       <div className="grid grid-rows-[2fr_1fr] gap-1 bg-white h-[450px]">
                         <div className="grid grid-cols-2 gap-1 h-full">
-                          <DraggableGridItem index={0} file={selectedFiles[0]} handleDragStart={handleDragStart} handleDrop={handleDrop} setPreviewMediaIndex={setPreviewMediaIndex} />
-                          <DraggableGridItem index={1} file={selectedFiles[1]} handleDragStart={handleDragStart} handleDrop={handleDrop} setPreviewMediaIndex={setPreviewMediaIndex} />
+                          <DraggableGridItem index={0} file={selectedFiles[0].file} handleDragStart={handleDragStart} handleDrop={handleDrop} setPreviewMediaIndex={setPreviewMediaIndex} />
+                          <DraggableGridItem index={1} file={selectedFiles[1].file} handleDragStart={handleDragStart} handleDrop={handleDrop} setPreviewMediaIndex={setPreviewMediaIndex} />
                         </div>
                         <div className="grid grid-cols-3 gap-1 h-full">
-                          <DraggableGridItem index={2} file={selectedFiles[2]} handleDragStart={handleDragStart} handleDrop={handleDrop} setPreviewMediaIndex={setPreviewMediaIndex} />
-                          <DraggableGridItem index={3} file={selectedFiles[3]} handleDragStart={handleDragStart} handleDrop={handleDrop} setPreviewMediaIndex={setPreviewMediaIndex} />
-                          <DraggableGridItem index={4} file={selectedFiles[4]} handleDragStart={handleDragStart} handleDrop={handleDrop} setPreviewMediaIndex={setPreviewMediaIndex}>
+                          <DraggableGridItem index={2} file={selectedFiles[2].file} handleDragStart={handleDragStart} handleDrop={handleDrop} setPreviewMediaIndex={setPreviewMediaIndex} />
+                          <DraggableGridItem index={3} file={selectedFiles[3].file} handleDragStart={handleDragStart} handleDrop={handleDrop} setPreviewMediaIndex={setPreviewMediaIndex} />
+                          <DraggableGridItem index={4} file={selectedFiles[4].file} handleDragStart={handleDragStart} handleDrop={handleDrop} setPreviewMediaIndex={setPreviewMediaIndex}>
                             {selectedFiles.length > 5 && (
                               <div className="absolute inset-0 bg-black/50 flex items-center justify-center pointer-events-none">
                                 <span className="text-white text-3xl font-semibold">+{selectedFiles.length - 5}</span>
@@ -489,6 +531,10 @@ export default function CreateCaseInline({ onClose, onSuccess, imgUrl }: { onClo
             </div>
           </div>
 
+          <div className="mt-4">
+            <AnonymousToggle isAnonymous={isAnonymous} onChange={setIsAnonymous} />
+          </div>
+
         </form>
       </div>
 
@@ -540,7 +586,7 @@ export default function CreateCaseInline({ onClose, onSuccess, imgUrl }: { onClo
           </button>
           
           <div className="w-full max-w-5xl h-[80vh] flex items-center justify-center relative bg-black/40 rounded-lg overflow-hidden border border-white/10">
-            <MediaPreview file={selectedFiles[previewMediaIndex]} />
+            <MediaPreview file={selectedFiles[previewMediaIndex]?.file} />
             
             {previewMediaIndex > 0 && (
               <button 
@@ -577,6 +623,16 @@ export default function CreateCaseInline({ onClose, onSuccess, imgUrl }: { onClo
                 onDrop={(e) => handleDrop(e, idx)}
                 onClick={() => setPreviewMediaIndex(idx)}
               >
+                {f.state === 'processing' && (
+                   <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-10">
+                      <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                   </div>
+                )}
+                {f.state === 'error' && (
+                   <div className="absolute inset-0 bg-red-500/80 flex flex-col items-center justify-center z-10 p-1">
+                      <span className="text-[8px] text-white text-center font-bold leading-tight" title={f.error}>Failed</span>
+                   </div>
+                )}
                 <button
                   type="button"
                   onClick={(e) => {
@@ -590,13 +646,13 @@ export default function CreateCaseInline({ onClose, onSuccess, imgUrl }: { onClo
                       setPreviewMediaIndex(previewMediaIndex - 1);
                     }
                   }}
-                  className="absolute top-0.5 right-0.5 bg-black/60 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition hover:bg-red-500 z-10"
+                  className="absolute top-0.5 right-0.5 bg-black/60 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition hover:bg-red-500 z-20"
                 >
                   <X size={12} />
                 </button>
-                {f.type.startsWith('image/') ? (
-                  <img src={URL.createObjectURL(f)} alt="thumb" className="w-full h-full object-cover pointer-events-none" />
-                ) : f.type.startsWith('video/') ? (
+                {f.file.type.startsWith('image/') ? (
+                  <img src={f.previewUrl} alt="thumb" className="w-full h-full object-cover pointer-events-none" />
+                ) : f.file.type.startsWith('video/') ? (
                    <div className="w-full h-full bg-slate-800 flex items-center justify-center pointer-events-none"><Video size={20} className="text-white/70"/></div>
                 ) : (
                    <div className="w-full h-full bg-slate-800 flex items-center justify-center pointer-events-none"><FileText size={20} className="text-white/70"/></div>

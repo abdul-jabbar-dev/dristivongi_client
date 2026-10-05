@@ -3,6 +3,7 @@ import { USER_Api } from './feature/user/user.reducer'
 import { CASE_Api } from './feature/case/case.reducer'
 import { OPINION_Api } from './feature/opinion/opinion.reducer'
 import { TAG_Api } from './feature/tag/tag.reducer'
+import { organizationApi } from './feature/organization/organizationApi'
 import authReducer from './feature/auth/auth.slice'
 
 export const makeStore = () => {
@@ -13,9 +14,10 @@ export const makeStore = () => {
             [CASE_Api.reducerPath]: CASE_Api.reducer,
             [OPINION_Api.reducerPath]: OPINION_Api.reducer,
             [TAG_Api.reducerPath]: TAG_Api.reducer,
+            [organizationApi.reducerPath]: organizationApi.reducer,
         },
         middleware: (getDefaultMiddleware) =>
-            getDefaultMiddleware().concat(USER_Api.middleware, CASE_Api.middleware, OPINION_Api.middleware, TAG_Api.middleware),
+            getDefaultMiddleware().concat(USER_Api.middleware, CASE_Api.middleware, OPINION_Api.middleware, TAG_Api.middleware, organizationApi.middleware),
     })
 }
 

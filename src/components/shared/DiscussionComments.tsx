@@ -2,12 +2,13 @@ import React, { useState, useRef } from 'react';
 import { useGetOpinionsQuery, useCreateOpinionMutation } from '@/redux/feature/opinion/opinion.reducer';
 import { useGetUserProfileQuery } from '@/redux/feature/user/user.reducer';
 import { resolveMediaUrl , getAvatarUrl} from '@/lib/utils';
-import { ThumbsUp, MessageCircle, MoreHorizontal, Image as ImageIcon, Smile, Send, Camera, Link as LinkIcon, X, Play } from 'lucide-react';
+import { ThumbsUp, MessageCircle, MoreHorizontal, Image as ImageIcon, Smile, Send, Camera, Link as LinkIcon, X, Play, Shield } from 'lucide-react';
 import { useSelector } from 'react-redux';
 import { RootState } from '@/redux/store';
 import Link from 'next/link';
 import LightboxModal from './LightboxModal';
 import TextWithMentions from './TextWithMentions';
+import AnonymousToggle from '../common/AnonymousToggle';
 
 interface Source {
    title: string;
@@ -27,9 +28,6 @@ export default function DiscussionComments({ targetType, targetId, previewMode }
 
    const user = useSelector((state: RootState) => state.auth.user);
    const isAuthenticated = useSelector((state: RootState) => state.auth.isAuthenticated);
-   
-   const { data: profileResponse } = useGetUserProfileQuery('me', { skip: !isAuthenticated });
-   const mergedUser = user ? { ...user, userProfile: profileResponse?.data?.userProfile } : null;
 
    // New states for dynamic features
    const [opinionFiles, setOpinionFiles] = useState<File[]>([]);
@@ -41,6 +39,7 @@ export default function DiscussionComments({ targetType, targetId, previewMode }
    // State for tracking which comment we are replying to
    const [replyingToId, setReplyingToId] = useState<string | null>(null);
    const [replyText, setReplyText] = useState('');
+   const [isAnonymous, setIsAnonymous] = useState(false);
    const [lightboxState, setLightboxState] = useState<{ medias: any[], initialIndex: number, contextInfo?: any } | null>(null);
 
    const fileInputRef = useRef<HTMLInputElement>(null);
@@ -55,6 +54,7 @@ export default function DiscussionComments({ targetType, targetId, previewMode }
          targetId: targetId,
          content: text,
          value: 'DISCUSSION',
+         isAnonymous,
          sources: opinionSources.map(s => ({
             ...s,
             externalSourceType: 'URL',
@@ -93,10 +93,15 @@ export default function DiscussionComments({ targetType, targetId, previewMode }
       }
    };
 
-   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
       if (e.target.files) {
-         const filesArray = Array.from(e.target.files);
-         setOpinionFiles(prev => [...prev, ...filesArray]);
+         try {
+            const { processFilesForUpload } = await import('@/lib/image-processor');
+            const processedFiles = await processFilesForUpload(Array.from(e.target.files));
+            setOpinionFiles(prev => [...prev, ...processedFiles]);
+         } catch (err: any) {
+            alert(err.message || 'Image processing failed');
+         }
       }
    };
 
@@ -132,13 +137,26 @@ export default function DiscussionComments({ targetType, targetId, previewMode }
 
    return (
       <div className="pt-4 border-t border-slate-100 mt-2">
-         {/* Composer */}
+          {/* Composer */}
          {isAuthenticated && (!previewMode || user) && (
-            <div className="flex gap-3 items-start mb-6">
-               <img src={getAvatarUrl(mergedUser)} alt="Me" className="w-9 h-9 rounded-full object-cover shrink-0 border border-slate-200" />
-               <div className="flex-1">
-                  <div className="flex flex-col bg-slate-50 border border-slate-200 rounded-xl focus-within:border-slate-400 focus-within:bg-white transition overflow-hidden">
-                     <div className="flex items-center px-4 py-2">
+            <div className={`p-4 rounded-xl mb-6 transition-colors ${isAnonymous ? 'bg-slate-50 border border-slate-200' : 'bg-transparent'}`}>
+               <div className="flex justify-between items-center mb-3">
+                 <div className="text-sm font-bold text-slate-700">
+                    {isAnonymous ? 'Anonymous Mode' : 'Add a comment'}
+                 </div>
+                 <AnonymousToggle isAnonymous={isAnonymous} onChange={setIsAnonymous} />
+               </div>
+               <div className="flex gap-3 items-start">
+                  {isAnonymous ? (
+                     <div className="w-9 h-9 rounded-full bg-slate-200 border border-slate-300 flex items-center justify-center text-slate-600 shrink-0">
+                        <Shield size={16} />
+                     </div>
+                  ) : (
+                     <img src={getAvatarUrl(user)} alt="Me" className="w-9 h-9 rounded-full object-cover shrink-0 border border-slate-200" />
+                  )}
+                  <div className="flex-1">
+                     <div className={`flex flex-col border rounded-xl focus-within:border-slate-400 focus-within:bg-white transition overflow-hidden ${isAnonymous ? 'bg-white border-slate-300' : 'bg-slate-50 border-slate-200'}`}>
+                        <div className="flex items-center px-4 py-2">
                         <input
                            type="text"
                            disabled={!user}
@@ -190,6 +208,7 @@ export default function DiscussionComments({ targetType, targetId, previewMode }
                      )}
                   </div>
                </div>
+            </div>
             </div>
          )}
          {/* Comments List */}
@@ -278,7 +297,7 @@ export default function DiscussionComments({ targetType, targetId, previewMode }
                         {/* Reply Composer */}
                         {replyingToId === op.id && (
                            <div className="mt-3 flex gap-2 items-center">
-                              <img src={getAvatarUrl(mergedUser)} className="w-6 h-6 rounded-full border border-slate-200 object-cover" />
+                              <img src={getAvatarUrl(user)} className="w-6 h-6 rounded-full border border-slate-200 object-cover" />
                               <div className="flex-1 bg-white border border-slate-200 rounded-full flex items-center px-3 py-1.5 shadow-sm">
                                  <input
                                     type="text"

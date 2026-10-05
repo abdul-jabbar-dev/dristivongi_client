@@ -9,29 +9,30 @@ import { useSelector } from 'react-redux';
 import { RootState } from '../../../redux/store';
 import EditProfileModal from './EditProfileModal';
 import CaseCard from '../../../components/CaseCard';
-import { Loader2, FileText } from 'lucide-react';
+import { Loader2, FileText, MapPin, Link as LinkIcon, Calendar, Activity, CheckCircle, Shield, FileCheck, HelpCircle } from 'lucide-react';
+import { resolveMediaUrl } from '../../../lib/utils';
 
 export default function ProfileClient({ username }: { username: string }) {
   const { data, isLoading, error } = useGetUserProfileQuery(username);
   const { data: casesData, isLoading: isCasesLoading } = useNewsFeedQuery(data?.data?.userName ? { author: data.data.userName } : skipToken);
   const currentUser = useSelector((state: RootState) => state.auth.user);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'cases' | 'contributions'>('cases');
+  const [activeTab, setActiveTab] = useState<'overview' | 'cases' | 'contributions'>('overview');
 
   if (isLoading) {
     return (
-      <div className="w-full max-w-4xl mx-auto mt-10 animate-pulse">
-        <div className="w-full h-48 bg-gray-200 rounded-lg"></div>
-        <div className="w-24 h-24 bg-gray-300 rounded-full mx-auto -mt-12 border-4 border-white"></div>
-        <div className="w-1/3 h-6 bg-gray-200 mx-auto mt-4"></div>
-        <div className="w-1/4 h-4 bg-gray-200 mx-auto mt-2"></div>
+      <div className="w-full max-w-5xl mx-auto mt-10 animate-pulse px-4">
+        <div className="w-full h-64 bg-slate-200 rounded-t-2xl"></div>
+        <div className="w-32 h-32 bg-slate-300 rounded-full mx-auto sm:ml-8 -mt-16 border-4 border-white"></div>
+        <div className="w-1/3 h-8 bg-slate-200 mt-4 sm:ml-8"></div>
+        <div className="w-1/4 h-4 bg-slate-200 mt-2 sm:ml-8"></div>
       </div>
     );
   }
 
   if (error || !data) {
     return (
-      <div className="w-full max-w-4xl mx-auto mt-20 text-center text-gray-500">
+      <div className="w-full max-w-4xl mx-auto mt-20 text-center text-slate-500">
         <h2 className="text-2xl font-bold mb-2">User not found</h2>
         <p className="mb-6">এই ব্যবহারকারীর প্রোফাইল পাওয়া যায়নি।</p>
         <button 
@@ -47,121 +48,254 @@ export default function ProfileClient({ username }: { username: string }) {
   const profile = data.data;
   const isOwner = currentUser?.id === profile.id;
 
-  return (
-    <div className="w-full max-w-4xl mx-auto mt-8 px-4">
-      <div className="relative w-full h-48 md:h-64 bg-gray-100 rounded-t-lg overflow-hidden">
-        {profile.userProfile?.coverPicture ? (
-          <Image src={profile.userProfile.coverPicture} alt="Cover" layout="fill" objectFit="cover" />
-        ) : (
-          <div className="w-full h-full bg-gradient-to-r from-blue-100 to-indigo-100"></div>
-        )}
-      </div>
+  const casesCount = profile._count?.cases || 0;
+  const claimsCount = profile._count?.claims || 0;
+  const evidenceCount = profile._count?.evidence || 0;
+  const sourceCount = (profile._count as any)?.sources || 0; // Assuming sources count exists or 0
+  const assessmentsCount = (profile._count as any)?.assessments || 0;
 
-      <div className="relative px-6 pb-6 bg-white rounded-b-lg shadow-sm border border-gray-100 border-t-0">
-        <div className="flex justify-between items-end -mt-16 sm:-mt-20 mb-4">
-          <div className="relative w-24 h-24 sm:w-32 sm:h-32 rounded-full border-4 border-white overflow-hidden bg-white shadow-sm z-10">
-            {profile.userProfile?.profilePicture ? (
-              <Image src={profile.userProfile.profilePicture} alt={profile.fullName} layout="fill" objectFit="cover" />
-            ) : (
-              <div className="w-full h-full bg-gray-200 flex items-center justify-center text-3xl text-gray-400 font-bold">
-                {profile.fullName.charAt(0).toUpperCase()}
-              </div>
-            )}
-          </div>
-          {isOwner && (
-            <button
-              onClick={() => setIsEditModalOpen(true)}
-              className="mb-2 px-4 py-2 border border-gray-300 rounded-md text-sm font-medium hover:bg-gray-50 transition-colors z-10 bg-white"
-            >
-              {profile.userName ? 'Edit Profile' : 'Set Username'}
-            </button>
+  return (
+    <div className="w-full max-w-5xl mx-auto mt-4 sm:mt-8 px-0 sm:px-4 mb-16">
+      
+      {/* Profile Header Card */}
+      <div className="bg-white sm:rounded-2xl shadow-sm border-x sm:border border-slate-200 overflow-hidden mb-6">
+        {/* Cover Image */}
+        <div className="relative w-full h-48 sm:h-72 bg-slate-100">
+          {profile.userProfile?.coverPicture ? (
+            <Image src={resolveMediaUrl(profile.userProfile.coverPicture)} alt="Cover" layout="fill" objectFit="cover" />
+          ) : (
+            <div className="w-full h-full bg-gradient-to-tr from-slate-200 to-slate-100"></div>
           )}
         </div>
 
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">{profile.fullName}</h1>
-          <p className="text-gray-500 font-medium">
-            {profile.userName ? `@${profile.userName}` : 'Username not set'}
-          </p>
-          
-          {profile.userProfile?.bio && (
-            <p className="mt-4 text-gray-700 whitespace-pre-wrap">{profile.userProfile.bio}</p>
-          )}
+        {/* Identity & Actions */}
+        <div className="px-4 sm:px-8 pb-6 relative">
+          <div className="flex flex-col sm:flex-row sm:items-end justify-between sm:-mt-16 mb-4">
+            <div className="relative w-28 h-28 sm:w-36 sm:h-36 rounded-full border-4 border-white overflow-hidden bg-slate-100 shadow-md z-10 -mt-14 sm:mt-0 mb-4 sm:mb-0">
+              {profile.userProfile?.profilePicture ? (
+                <Image src={resolveMediaUrl(profile.userProfile.profilePicture)} alt={profile.fullName} layout="fill" objectFit="cover" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-4xl text-slate-400 font-bold bg-slate-200">
+                  {profile.fullName.charAt(0).toUpperCase()}
+                </div>
+              )}
+            </div>
+            
+            <div className="flex gap-3 z-10 sm:mb-4">
+              {isOwner ? (
+                <button
+                  onClick={() => setIsEditModalOpen(true)}
+                  className="px-5 py-2 border border-slate-300 rounded-full text-sm font-semibold text-slate-700 hover:bg-slate-50 hover:border-slate-400 transition-colors bg-white shadow-sm flex-1 sm:flex-none text-center"
+                >
+                  Edit Profile
+                </button>
+              ) : (
+                <>
+                  <button className="px-6 py-2 bg-blue-600 text-white rounded-full text-sm font-semibold hover:bg-blue-700 transition shadow-sm flex-1 sm:flex-none">
+                    Follow
+                  </button>
+                  <button className="px-4 py-2 border border-slate-300 rounded-full text-sm font-semibold text-slate-700 hover:bg-slate-50 transition bg-white shadow-sm flex-1 sm:flex-none text-center">
+                    Message
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
 
-          <div className="flex flex-wrap gap-4 mt-4 text-sm text-gray-600">
-            {profile.userProfile?.location && (
-              <div className="flex items-center gap-1">
-                📍 <span>{profile.userProfile.location}</span>
+          <div className="mt-2">
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 leading-tight">
+              {profile.fullName}
+            </h1>
+            <p className="text-slate-500 font-medium mb-3">
+              {profile.userName ? `@${profile.userName}` : 'Username not set'}
+            </p>
+            
+            <p className="text-slate-800 font-medium text-sm sm:text-base max-w-2xl whitespace-pre-wrap leading-relaxed">
+              {profile.userProfile?.bio || 'Civic Contributor'}
+            </p>
+
+            <div className="flex flex-wrap gap-x-5 gap-y-2 mt-4 text-sm text-slate-500 font-medium">
+              {profile.userProfile?.location && (
+                <div className="flex items-center gap-1.5">
+                  <MapPin size={16} className="text-slate-400" />
+                  <span>{profile.userProfile.location}</span>
+                </div>
+              )}
+              {profile.userProfile?.website && (
+                <div className="flex items-center gap-1.5">
+                  <LinkIcon size={16} className="text-slate-400" />
+                  <a href={profile.userProfile.website} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">
+                    {new URL(profile.userProfile.website).hostname.replace('www.', '')}
+                  </a>
+                </div>
+              )}
+              <div className="flex items-center gap-1.5">
+                <Calendar size={16} className="text-slate-400" />
+                <span>Joined {new Date(profile.createdAt || Date.now()).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</span>
               </div>
-            )}
-            {profile.userProfile?.website && (
-              <div className="flex items-center gap-1">
-                🔗 <a href={profile.userProfile.website} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">{new URL(profile.userProfile.website).hostname.replace('www.', '')}</a>
-              </div>
-            )}
-            <div className="flex items-center gap-1">
-              📅 <span>Joined {new Date(profile.createdAt || Date.now()).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</span>
             </div>
           </div>
         </div>
 
-        <div className="flex gap-6 mt-8 border-t border-gray-100 pt-6">
-          <div className="text-center">
-            <span className="block text-xl font-bold text-gray-900">{profile._count?.cases || 0}</span>
-            <span className="text-sm text-gray-500">Cases</span>
-          </div>
-          <div className="text-center">
-            <span className="block text-xl font-bold text-gray-900">{profile._count?.claims || 0}</span>
-            <span className="text-sm text-gray-500">Claims</span>
-          </div>
-          <div className="text-center">
-            <span className="block text-xl font-bold text-gray-900">{profile._count?.evidence || 0}</span>
-            <span className="text-sm text-gray-500">Contributions</span>
+        {/* Navigation Tabs */}
+        <div className="px-4 sm:px-8 flex overflow-x-auto border-t border-slate-100 scrollbar-hide">
+          <div className="flex gap-1 sm:gap-6 min-w-max">
+            {(['overview', 'cases', 'contributions'] as const).map((tab) => (
+              <button 
+                key={tab}
+                className={`px-4 py-4 font-bold text-sm border-b-[3px] transition-colors whitespace-nowrap ${
+                  activeTab === tab 
+                    ? 'border-blue-600 text-blue-600' 
+                    : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                }`}
+                onClick={() => setActiveTab(tab)}
+              >
+                {tab.charAt(0).toUpperCase() + tab.slice(1)}
+              </button>
+            ))}
           </div>
         </div>
       </div>
-
-      <div className="mt-6 flex gap-4 border-b border-gray-200">
-        <button 
-          className={`px-4 py-2 font-medium ${activeTab === 'cases' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
-          onClick={() => setActiveTab('cases')}
-        >
-          Cases
-        </button>
-        <button 
-          className={`px-4 py-2 font-medium ${activeTab === 'contributions' ? 'text-blue-600 border-b-2 border-blue-600' : 'text-gray-500 hover:text-gray-700'}`}
-          onClick={() => setActiveTab('contributions')}
-        >
-          Contributions
-        </button>
-      </div>
       
-      <div className="py-6">
-        {activeTab === 'cases' && (
-          <div className="space-y-6">
-            {isCasesLoading ? (
-              <div className="flex justify-center py-10">
-                <Loader2 className="w-8 h-8 text-slate-400 animate-spin" />
-              </div>
-            ) : casesData?.data && casesData.data.length > 0 ? (
-              casesData.data.map((c: any) => (
-                <CaseCard key={c.id} c={c} />
-              ))
-            ) : (
-              <div className="text-center py-16 bg-white border border-slate-200 rounded-xl">
-                <FileText size={48} className="mx-auto text-slate-300 mb-4" />
-                <h3 className="text-lg font-bold text-slate-700 mb-2">No Cases Found</h3>
-                <p className="text-sm text-slate-500">This user hasn't published any cases yet.</p>
-              </div>
-            )}
-          </div>
-        )}
+      {/* 2-Column Main Content Layout */}
+      <div className="flex flex-col lg:flex-row gap-6 px-4 sm:px-0">
         
-        {activeTab === 'contributions' && (
-          <div className="text-gray-500 text-center py-16 bg-white border border-slate-200 rounded-xl">
-            Contributions will be displayed here.
+        {/* Left Column (Sidebar) */}
+        <div className="w-full lg:w-[340px] shrink-0 space-y-6">
+          
+          {/* Civic Activity Identity Card */}
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
+            <h2 className="text-base font-bold text-slate-800 mb-4 flex items-center gap-2">
+              <Activity size={18} className="text-blue-500" />
+              Civic Activity
+            </h2>
+            
+            <div className="space-y-3">
+              <div className="flex items-center justify-between text-sm">
+                <div className="flex items-center gap-2 text-slate-600 font-medium">
+                  <FileText size={16} className="text-slate-400" /> Cases Created
+                </div>
+                <span className="font-bold text-slate-800">{casesCount}</span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <div className="flex items-center gap-2 text-slate-600 font-medium">
+                  <HelpCircle size={16} className="text-slate-400" /> Claims Contributed
+                </div>
+                <span className="font-bold text-slate-800">{claimsCount}</span>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <div className="flex items-center justify-between text-sm w-full">
+                  <div className="flex items-center gap-2 text-slate-600 font-medium">
+                    <CheckCircle size={16} className="text-slate-400" /> Evidence Added
+                  </div>
+                  <span className="font-bold text-slate-800">{evidenceCount}</span>
+                </div>
+              </div>
+              <div className="flex items-center justify-between text-sm">
+                <div className="flex items-center gap-2 text-slate-600 font-medium">
+                  <LinkIcon size={16} className="text-slate-400" /> Sources Added
+                </div>
+                <span className="font-bold text-slate-800">{sourceCount}</span>
+              </div>
+            </div>
           </div>
-        )}
+
+          {/* About / Meta Card */}
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
+             <h2 className="text-base font-bold text-slate-800 mb-4 flex items-center gap-2">
+                <Shield size={18} className="text-slate-500" />
+                About
+             </h2>
+             <div className="space-y-4 text-sm text-slate-600">
+                {profile.userProfile?.bio && (
+                  <div>
+                    <p className="leading-relaxed">{profile.userProfile.bio}</p>
+                  </div>
+                )}
+                {profile.userProfile?.location && (
+                  <div className="flex items-center gap-2">
+                    <MapPin size={16} className="text-slate-400" />
+                    <span className="font-medium">{profile.userProfile.location}</span>
+                  </div>
+                )}
+                <div className="flex items-center gap-2">
+                  <Calendar size={16} className="text-slate-400" />
+                  <span className="font-medium">Joined {new Date(profile.createdAt || Date.now()).getFullYear()}</span>
+                </div>
+             </div>
+          </div>
+
+        </div>
+
+        {/* Right Column (Main Feed) */}
+        <div className="flex-1 min-w-0">
+          
+          {/* Overview Tab Content */}
+          {activeTab === 'overview' && (
+            <div className="space-y-6">
+               {isCasesLoading ? (
+                <div className="flex justify-center py-10 bg-white rounded-2xl border border-slate-200">
+                  <Loader2 className="w-8 h-8 text-slate-400 animate-spin" />
+                </div>
+               ) : casesData?.data && casesData.data.length > 0 ? (
+                 <>
+                   <h3 className="text-lg font-bold text-slate-800 px-1">Recent Cases</h3>
+                   <div className="space-y-4">
+                     {casesData.data.slice(0, 3).map((c: any, index: number) => (
+                       <CaseCard key={`overview-${c.id}-${index}`} c={c} />
+                     ))}
+                   </div>
+                   {casesData.data.length > 3 && (
+                     <button 
+                        onClick={() => setActiveTab('cases')}
+                        className="w-full py-3 bg-slate-50 hover:bg-slate-100 text-slate-700 font-bold rounded-xl border border-slate-200 transition text-sm text-center"
+                     >
+                       View all cases
+                     </button>
+                   )}
+                 </>
+               ) : (
+                <div className="text-center py-16 bg-white border border-slate-200 rounded-2xl">
+                  <FileCheck size={48} className="mx-auto text-slate-200 mb-4" />
+                  <h3 className="text-lg font-bold text-slate-700 mb-1">No Activity Yet</h3>
+                  <p className="text-sm text-slate-500 max-w-xs mx-auto">This contributor hasn't published any public activity yet.</p>
+                </div>
+               )}
+            </div>
+          )}
+
+          {/* Cases Tab Content */}
+          {activeTab === 'cases' && (
+            <div className="space-y-4">
+              {isCasesLoading ? (
+                <div className="flex justify-center py-10 bg-white rounded-2xl border border-slate-200">
+                  <Loader2 className="w-8 h-8 text-slate-400 animate-spin" />
+                </div>
+              ) : casesData?.data && casesData.data.length > 0 ? (
+                casesData.data.map((c: any, index: number) => (
+                  <CaseCard key={`${c.id}-${index}`} c={c} />
+                ))
+              ) : (
+                <div className="text-center py-16 bg-white border border-slate-200 rounded-2xl">
+                  <FileText size={48} className="mx-auto text-slate-200 mb-4" />
+                  <h3 className="text-lg font-bold text-slate-700 mb-1">No Cases Found</h3>
+                  <p className="text-sm text-slate-500">This user hasn't created any cases yet.</p>
+                </div>
+              )}
+            </div>
+          )}
+          
+          {/* Contributions Tab Content */}
+          {activeTab === 'contributions' && (
+            <div className="text-center py-16 bg-white border border-slate-200 rounded-2xl">
+               <Activity size={48} className="mx-auto text-slate-200 mb-4" />
+               <h3 className="text-lg font-bold text-slate-700 mb-1">Contributions</h3>
+               <p className="text-sm text-slate-500">Evidence, claims, and source contributions will appear here.</p>
+            </div>
+          )}
+
+        </div>
+
       </div>
 
       {isEditModalOpen && (
