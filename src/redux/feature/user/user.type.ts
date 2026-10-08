@@ -12,6 +12,7 @@ type TUserType = {
         profilePicture?: string;
         coverPicture?: string;
     };
+    organizationMemberships?: any[];
     _count?: {
         cases: number;
         claims: number;

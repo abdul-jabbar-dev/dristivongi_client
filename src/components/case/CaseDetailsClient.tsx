@@ -1,6 +1,7 @@
 'use client';
-import React, { useState } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import AddClaimDrawer from '@/components/case/AddClaimDrawer';
 import CompactCaseDetails from '@/components/case/CompactCaseDetails';
 import ClaimWorkspace from '@/components/case/ClaimWorkspace';
@@ -12,7 +13,7 @@ import { useGetOpinionsQuery } from '@/redux/feature/opinion/opinion.reducer';
 import { useSelector } from 'react-redux';
 import { RootState } from '@/redux/store';
 
-export default function CaseDetailsClient({ id, initialData, initialOpinions }: { id: string, initialData: any, initialOpinions: any[] }) {
+function CaseDetailsContent({ id, initialData, initialOpinions }: { id: string, initialData: any, initialOpinions: any[] }) {
   // We can still use RTK Query for live updates, but skip initial fetch or let it run in background
   const { data: responseData } = useCaseDetailsQuery(id, {
     skip: !initialData, // If we don't have initial data, we might want to fetch, but we do have it
@@ -28,6 +29,49 @@ export default function CaseDetailsClient({ id, initialData, initialOpinions }: 
   const [selectedClaimId, setSelectedClaimId] = useState<string | null>(null);
   const [isAddClaimModalOpen, setIsAddClaimModalOpen] = useState(false);
   const [isAddCaseEvidenceModalOpen, setIsAddCaseEvidenceModalOpen] = useState(false);
+  
+  const searchParams = useSearchParams();
+  const queryClaimId = searchParams?.get('claim');
+  const queryClaimEvid = searchParams?.get('claim_evid');
+  const queryCaseEvid = searchParams?.get('case_evid');
+  const queryCaseComtId = searchParams?.get('case_comtid');
+  const queryClaimComtId = searchParams?.get('claim_comtid');
+
+  const handleSelectClaim = (claimId: string) => {
+    setSelectedClaimId(claimId);
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set('claim', claimId);
+      window.history.pushState({}, '', url.toString());
+    } catch (_) {}
+  };
+
+  useEffect(() => {
+    if (queryClaimId && selectedClaimId !== queryClaimId) {
+      setSelectedClaimId(queryClaimId);
+    }
+  }, [queryClaimId]);
+
+  useEffect(() => {
+    const handleFocus = (e: any) => {
+      const { id, type } = e.detail || {};
+      const claims = data?.claims || [];
+      const claimId = id || (type === 'CLAIM' ? id : null);
+      if (claimId && claims.some((c: any) => c.id === claimId)) {
+        handleSelectClaim(claimId);
+        setTimeout(() => {
+          const el = document.getElementById('claim-details-card') || document.getElementById('claim-workspace-container');
+          if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            el.classList.add('ring-4', 'ring-sky-500', 'bg-sky-50/70', 'shadow-2xl', 'rounded-2xl', 'transition-all', 'duration-500');
+            setTimeout(() => el.classList.remove('ring-4', 'ring-sky-500', 'bg-sky-50/70', 'shadow-2xl'), 3500);
+          }
+        }, 150);
+      }
+    };
+    window.addEventListener('focus-target-item', handleFocus);
+    return () => window.removeEventListener('focus-target-item', handleFocus);
+  }, [data]);
   
   const { user } = useSelector((state: RootState) => state.auth);
   
@@ -89,9 +133,18 @@ export default function CaseDetailsClient({ id, initialData, initialOpinions }: 
          isOpen={isAddCaseEvidenceModalOpen}
          onClose={() => setIsAddCaseEvidenceModalOpen(false)}
          caseId={id}
-         isModal={true}
+         isModal={true} 
+         isNotShowAnonymous={isCreator}
       />
 
     </div>
+  );
+}
+
+export default function CaseDetailsClient({ id, initialData, initialOpinions }: { id: string, initialData: any, initialOpinions: any[] }) {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <CaseDetailsContent id={id} initialData={initialData} initialOpinions={initialOpinions} />
+    </Suspense>
   );
 }

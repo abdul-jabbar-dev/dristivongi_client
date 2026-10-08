@@ -15,7 +15,7 @@ export default function AdminOrganizations() {
     if (action === 'REJECT' && !reason) return;
     
     try {
-      await reviewOrg({ id, action, reason }).unwrap();
+      await reviewOrg({ id, action, reason: reason || undefined }).unwrap();
       alert(`Organization ${action.toLowerCase()} successfully.`);
     } catch (err) {
       alert('Action failed');

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Plus, X, MapPin, Grid, Image as ImageIcon, Video, FileText, Info, Globe, Send, FilePlus, Bold, Italic, List, Quote, Link, Hash, Shield } from 'lucide-react';
+import { Plus, X, MapPin, Grid, Image as ImageIcon, Video, FileText, Info, Globe, Send, FilePlus, Bold, Italic, List, Quote, Link, Hash, Shield, ChevronDown } from 'lucide-react';
 import { useCreateCaseMutation, useImportUrlMutation } from '@/redux/feature/case/case.reducer';
 import { useSearchTagsQuery } from '@/redux/feature/tag/tag.reducer';
 import { sanitizePastedHtml } from '@/utils/sanitizePaste';
@@ -11,9 +11,9 @@ const MediaPreview = ({ file }: { file: File }) => {
   } else if (file.type === 'application/pdf') {
     return (
       <div className="w-full h-full overflow-hidden">
-        <iframe 
-          src={`${URL.createObjectURL(file)}#toolbar=0&navpanes=0&scrollbar=0&view=Fit`} 
-          className="w-full h-full border-none pointer-events-none overflow-hidden scale-[1.02]" 
+        <iframe
+          src={`${URL.createObjectURL(file)}#toolbar=0&navpanes=0&scrollbar=0&view=Fit`}
+          className="w-full h-full border-none pointer-events-none overflow-hidden scale-[1.02]"
           scrolling="no"
           title="PDF Preview"
         />
@@ -55,7 +55,7 @@ const DraggableGridItem = ({ index, file, handleDragStart, handleDrop, setPrevie
   );
 };
 
-export default function CreateCaseInline({ onClose, onSuccess, imgUrl }: { onClose: () => void, onSuccess?: () => void, imgUrl: string }) {
+export default function CreateCaseInline({ onClose, onSuccess, imgUrl, organizationId }: { onClose: () => void, onSuccess?: () => void, imgUrl: string, organizationId?: string }) {
   const [createCaseMutation, { isLoading }] = useCreateCaseMutation();
   const [importUrlMutation] = useImportUrlMutation();
   const [error, setError] = useState<string | null>(null);
@@ -64,6 +64,12 @@ export default function CreateCaseInline({ onClose, onSuccess, imgUrl }: { onClo
   const [location, setLocation] = useState('');
   const [category, setCategory] = useState('');
   const [isAnonymous, setIsAnonymous] = useState(false);
+  const [visibility, setVisibility] = useState('PUBLIC');
+
+  const [canUserCreateClaim, setCanUserCreateClaim] = useState(true);
+  const [canUserCreateClaimEvidence, setCanUserCreateClaimEvidence] = useState(true);
+  const [canUserCreateClaimUpdate, setCanUserCreateClaimUpdate] = useState(true);
+  const [showSettings, setShowSettings] = useState(false);
 
   const [tagInput, setTagInput] = useState('');
   const [showTagSuggestions, setShowTagSuggestions] = useState(false);
@@ -71,11 +77,22 @@ export default function CreateCaseInline({ onClose, onSuccess, imgUrl }: { onClo
     skip: !tagInput || tagInput.length < 1,
   });
 
-  const [selectedFiles, setSelectedFiles] = useState<{file: File, state: string, previewUrl: string, error?: string}[]>([]);
+  const [selectedFiles, setSelectedFiles] = useState<{ file: File, state: string, previewUrl: string, error?: string }[]>([]);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [previewMediaIndex, setPreviewMediaIndex] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const editorRef = useRef<HTMLDivElement>(null);
+  const settingsRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (settingsRef.current && !settingsRef.current.contains(e.target as Node)) {
+        setShowSettings(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const handleDragStart = (e: React.DragEvent, index: number) => {
     setDraggedIndex(index);
@@ -85,12 +102,12 @@ export default function CreateCaseInline({ onClose, onSuccess, imgUrl }: { onClo
   const handleDrop = (e: React.DragEvent, targetIndex: number) => {
     e.preventDefault();
     if (draggedIndex === null || draggedIndex === targetIndex) return;
-    
+
     const newFiles = [...selectedFiles];
     const item = newFiles.splice(draggedIndex, 1)[0];
     newFiles.splice(targetIndex, 0, item);
     setSelectedFiles(newFiles);
-    
+
     if (previewMediaIndex !== null) {
       if (draggedIndex === previewMediaIndex) {
         setPreviewMediaIndex(targetIndex);
@@ -100,7 +117,7 @@ export default function CreateCaseInline({ onClose, onSuccess, imgUrl }: { onClo
         setPreviewMediaIndex(previewMediaIndex + 1);
       }
     }
-    
+
     setDraggedIndex(null);
   };
 
@@ -108,29 +125,29 @@ export default function CreateCaseInline({ onClose, onSuccess, imgUrl }: { onClo
     if (e.target.files) {
       const filesArray = Array.from(e.target.files);
       const newEntries = filesArray.map(f => ({
-         file: f,
-         state: f.type.startsWith('image/') ? 'processing' : 'idle',
-         previewUrl: URL.createObjectURL(f)
+        file: f,
+        state: f.type.startsWith('image/') ? 'processing' : 'idle',
+        previewUrl: URL.createObjectURL(f)
       }));
-      
+
       setSelectedFiles(prev => [...prev, ...newEntries]);
 
       // Process images
       for (let i = 0; i < filesArray.length; i++) {
-         const originalFile = filesArray[i];
-         if (originalFile.type.startsWith('image/')) {
-            try {
-               const { processImageToWebP } = await import('@/lib/image-processor');
-               const processed = await processImageToWebP(originalFile);
-               setSelectedFiles(prev => prev.map(entry => 
-                  entry.file === originalFile ? { file: processed.file, state: 'success', previewUrl: processed.previewUrl } : entry
-               ));
-            } catch (err: any) {
-               setSelectedFiles(prev => prev.map(entry => 
-                  entry.file === originalFile ? { file: originalFile, state: 'error', previewUrl: entry.previewUrl, error: err.message } : entry
-               ));
-            }
-         }
+        const originalFile = filesArray[i];
+        if (originalFile.type.startsWith('image/')) {
+          try {
+            const { processImageToWebP } = await import('@/lib/image-processor');
+            const processed = await processImageToWebP(originalFile);
+            setSelectedFiles(prev => prev.map(entry =>
+              entry.file === originalFile ? { file: processed.file, state: 'success', previewUrl: processed.previewUrl } : entry
+            ));
+          } catch (err: any) {
+            setSelectedFiles(prev => prev.map(entry =>
+              entry.file === originalFile ? { file: originalFile, state: 'error', previewUrl: entry.previewUrl, error: err.message } : entry
+            ));
+          }
+        }
       }
     }
   };
@@ -143,11 +160,11 @@ export default function CreateCaseInline({ onClose, onSuccess, imgUrl }: { onClo
     e.preventDefault();
     const htmlData = e.clipboardData.getData('text/html');
     const plainText = e.clipboardData.getData('text/plain');
-    
+
     if (htmlData) {
       const { cleanHtml, mediaUrlsToImport } = sanitizePastedHtml(htmlData);
       document.execCommand('insertHTML', false, cleanHtml);
-      
+
       // Fire off background imports for extracted media
       mediaUrlsToImport.forEach(async (media) => {
         try {
@@ -162,22 +179,22 @@ export default function CreateCaseInline({ onClose, onSuccess, imgUrl }: { onClo
             }
           }
         } catch (err: any) {
-           console.error("Failed to import media", err);
-           // Optionally, if import fails, we could remove the placeholder or show a broken image.
-           const el = document.getElementById(media.id);
-           if (el) {
-              el.style.opacity = '1';
-              // Fallback to original external URL if you prefer, or leave it broken
-              el.setAttribute('src', media.url); 
-              handleEditorInput();
-           }
+          console.error("Failed to import media", err);
+          // Optionally, if import fails, we could remove the placeholder or show a broken image.
+          const el = document.getElementById(media.id);
+          if (el) {
+            el.style.opacity = '1';
+            // Fallback to original external URL if you prefer, or leave it broken
+            el.setAttribute('src', media.url);
+            handleEditorInput();
+          }
         }
       });
-      
+
     } else if (plainText) {
       document.execCommand('insertText', false, plainText);
     }
-    
+
     // Slight delay to ensure DOM updates before reading innerHTML
     setTimeout(() => {
       handleEditorInput();
@@ -274,7 +291,11 @@ export default function CreateCaseInline({ onClose, onSuccess, imgUrl }: { onClo
       title: plainText,
       titleHtml: htmlContent,
       location: location.trim() ? location : "Not specified",
-      isAnonymous
+      isAnonymous,
+      organizationId,
+      canUserCreateClaim,
+      canUserCreateClaimEvidence,
+      canUserCreateClaimUpdate,
     };
 
     const formData = new FormData();
@@ -302,19 +323,147 @@ export default function CreateCaseInline({ onClose, onSuccess, imgUrl }: { onClo
           <div className="mt-0.5 shrink-0">
             {isAnonymous ? (
               <div className="w-10 h-10 rounded-full bg-slate-200 border border-slate-300 flex items-center justify-center text-slate-700">
-                 <Shield size={18} />
+                <Shield size={18} />
               </div>
-            ) : (
+            ) : imgUrl ? (
               <img src={imgUrl} alt="User" className="w-10 h-10 rounded-full object-cover shrink-0 border border-slate-100" />
+            ) : (
+              <div className="w-10 h-10 rounded-full bg-slate-200 border border-slate-100 flex-shrink-0 overflow-hidden">
+                <svg className="w-full h-full text-slate-400 bg-slate-100" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M24 20.993V24H0v-2.996A14.977 14.977 0 0112.004 15c4.904 0 9.26 2.354 11.996 5.993zM16.002 8.999a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+              </div>
             )}
           </div>
           <div>
             <h2 className={`text-[15px] font-semibold leading-5 ${isAnonymous ? 'text-slate-800' : 'text-slate-800'}`}>
               {isAnonymous ? 'Anonymous Mode' : 'নতুন বিষয় তুলুন'}
             </h2>
-            <p className={`text-[11px] mt-0.5 leading-4 ${isAnonymous ? 'text-slate-500' : 'text-slate-500'}`}>
-              {isAnonymous ? 'Your identity will not be shown publicly.' : 'আপনার এলাকার গুরুত্বপূর্ণ কোনো সমস্যা, ঘটনা বা জনস্বার্থের বিষয় শেয়ার করুন।'}
-            </p>
+            <div className="flex items-center gap-2 mt-1">
+              {/* Visibility Pill Selector */}
+              <div className="relative inline-block">
+                <Globe size={11} className="absolute left-2 top-1/2 -translate-y-1/2 text-slate-600 pointer-events-none" />
+                <select
+                  value={visibility}
+                  onChange={e => setVisibility(e.target.value)}
+                  className="h-6 pl-6 pr-5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium text-[11px] rounded-md transition cursor-pointer border border-slate-200 shadow-2xs outline-none appearance-none"
+                >
+                  <option value="PUBLIC">Public (সবার জন্য)</option>
+                  <option value="PRIVATE">Private (শুধুমাত্র আমি)</option>
+                </select>
+                <ChevronDown size={11} className="absolute right-1.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
+              </div>
+
+              {/* Direct Root Checkbox / Switch + Dropdown */}
+              <div className="relative flex items-center gap-1.5" ref={settingsRef}>
+                <div className="flex items-center gap-1.5 h-6 px-2 bg-slate-100 border border-slate-200 rounded-md shadow-2xs">
+                  <button
+                    type="button"
+                    title={canUserCreateClaim || canUserCreateClaimEvidence || canUserCreateClaimUpdate ? "কেস অনুমতি চালু" : "সাধারণ পোস্ট (সকল অনুমতি বন্ধ)"}
+                    onClick={() => {
+                      const hasAnyOn = canUserCreateClaim || canUserCreateClaimEvidence || canUserCreateClaimUpdate;
+                      if (hasAnyOn) {
+                        setCanUserCreateClaim(false);
+                        setCanUserCreateClaimEvidence(false);
+                        setCanUserCreateClaimUpdate(false);
+                        setShowSettings(false);
+                      } else {
+                        setCanUserCreateClaim(true);
+                        setCanUserCreateClaimEvidence(true);
+                        setCanUserCreateClaimUpdate(true);
+                      }
+                    }}
+                    className={`relative inline-flex h-3.5 w-6 shrink-0 cursor-pointer rounded-full border border-transparent transition-colors duration-200 ${canUserCreateClaim || canUserCreateClaimEvidence || canUserCreateClaimUpdate ? 'bg-blue-600' : 'bg-slate-300'
+                      }`}
+                  >
+                    <span className={`inline-block h-2.5 w-2.5 transform rounded-full bg-white shadow-sm transition duration-200 mt-0.5 ${canUserCreateClaim || canUserCreateClaimEvidence || canUserCreateClaimUpdate ? 'translate-x-3' : 'translate-x-0.5'}`} />
+                  </button>
+
+                  <button
+                    type="button"
+                    disabled={!(canUserCreateClaim || canUserCreateClaimEvidence || canUserCreateClaimUpdate)}
+                    onClick={() => {
+                      if (canUserCreateClaim || canUserCreateClaimEvidence || canUserCreateClaimUpdate) {
+                        setShowSettings(!showSettings);
+                      }
+                    }}
+                    className={`inline-flex items-center gap-1 font-medium text-[11px] transition ${
+                      !(canUserCreateClaim || canUserCreateClaimEvidence || canUserCreateClaimUpdate)
+                        ? 'text-slate-400 cursor-not-allowed'
+                        : 'text-slate-700 hover:text-blue-600 cursor-pointer'
+                    }`}
+                  >
+                    <span>
+                      {!(canUserCreateClaim || canUserCreateClaimEvidence || canUserCreateClaimUpdate)
+                        ? 'পোস্ট'
+                        : 'অনুমতি সেটিংস'}
+                    </span>
+                    {(canUserCreateClaim || canUserCreateClaimEvidence || canUserCreateClaimUpdate) && (
+                      <ChevronDown size={11} className={`text-slate-500 transition-transform ${showSettings ? 'rotate-180' : ''}`} />
+                    )}
+                  </button>
+                </div>
+
+                {showSettings && (
+                  <div className="absolute left-0 top-full mt-1.5 z-[9999] w-72 sm:w-80 bg-white border border-slate-200 rounded-xl shadow-xl p-3.5 space-y-3 animate-in fade-in zoom-in-95 duration-150">
+                    <div className="flex items-center justify-between text-xs font-bold text-slate-800 border-b border-slate-100 pb-2">
+                      <div className="flex items-center gap-1.5">
+                        <Shield size={14} className="text-slate-600" />
+                        <span>কাস্টম অনুমতি সেটিংস</span>
+                      </div>
+                      <button type="button" onClick={() => setShowSettings(false)} className="text-slate-400 hover:text-slate-600 text-[11px] font-medium">
+                        বন্ধ করুন
+                      </button>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-3 text-xs pt-1">
+                      <div>
+                        <div className="font-semibold text-slate-800 text-[11.5px]">ব্যবহারকারীরা দাবি (Claim) তৈরি করতে পারবে</div>
+                        <div className="text-[10px] text-slate-500">Claim তৈরির অনুমতি</div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setCanUserCreateClaim(!canUserCreateClaim)}
+                        className={`relative inline-flex h-4.5 w-8 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ${canUserCreateClaim ? 'bg-emerald-600' : 'bg-slate-300'
+                          }`}
+                      >
+                        <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow-md transition duration-200 ${canUserCreateClaim ? 'translate-x-3.5' : 'translate-x-0'}`} />
+                      </button>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-3 text-xs pt-2 border-t border-slate-100">
+                      <div>
+                        <div className="font-semibold text-slate-800 text-[11.5px]">ব্যবহারকারীরা দাবিতে প্রমাণ (Evidence) যোগ করতে পারবে</div>
+                        <div className="text-[10px] text-slate-500">Evidence যোগ করার অনুমতি</div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setCanUserCreateClaimEvidence(!canUserCreateClaimEvidence)}
+                        className={`relative inline-flex h-4.5 w-8 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ${canUserCreateClaimEvidence ? 'bg-emerald-600' : 'bg-slate-300'
+                          }`}
+                      >
+                        <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow-md transition duration-200 ${canUserCreateClaimEvidence ? 'translate-x-3.5' : 'translate-x-0'}`} />
+                      </button>
+                    </div>
+
+                    <div className="flex items-center justify-between gap-3 text-xs pt-2 border-t border-slate-100">
+                      <div>
+                        <div className="font-semibold text-slate-800 text-[11.5px]">ব্যবহারকারীরা দাবির আপডেট (Update) দিতে পারবে</div>
+                        <div className="text-[10px] text-slate-500">Update দেওয়ার অনুমতি</div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setCanUserCreateClaimUpdate(!canUserCreateClaimUpdate)}
+                        className={`relative inline-flex h-4.5 w-8 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ${canUserCreateClaimUpdate ? 'bg-emerald-600' : 'bg-slate-300'
+                          }`}
+                      >
+                        <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow-md transition duration-200 ${canUserCreateClaimUpdate ? 'translate-x-3.5' : 'translate-x-0'}`} />
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
         <div className="flex items-center gap-4">
@@ -410,7 +559,7 @@ export default function CreateCaseInline({ onClose, onSuccess, imgUrl }: { onClo
                     <button type="button" onClick={() => setSelectedFiles([])} className="absolute top-2 right-2 bg-white/80 hover:bg-white text-slate-700 rounded-full p-1.5 shadow-sm transition z-20">
                       <X size={18} />
                     </button>
-                    
+
                     {selectedFiles.length === 1 && (
                       <DraggableGridItem index={0} file={selectedFiles[0].file} handleDragStart={handleDragStart} handleDrop={handleDrop} setPreviewMediaIndex={setPreviewMediaIndex} className="max-h-[400px]" />
                     )}
@@ -531,33 +680,11 @@ export default function CreateCaseInline({ onClose, onSuccess, imgUrl }: { onClo
             </div>
           </div>
 
-          <div className="mt-4">
-            <AnonymousToggle isAnonymous={isAnonymous} onChange={setIsAnonymous} />
-          </div>
-
         </form>
       </div>
 
       {/* Footer Actions */}
-      <div className="px-4 sm:px-5 py-3 border-t border-slate-200 bg-slate-50/50 flex flex-col sm:flex-row justify-between items-center gap-3">
-
-        {/* Visibility */}
-        <div className="w-full sm:w-auto">
-          <label className="block text-[10px] font-semibold text-slate-500 mb-1">দৃশ্যমানতা</label>
-          <div className="relative inline-block w-full sm:w-[200px]">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
-              <Globe size={14} />
-            </div>
-            <select className="w-full h-9 border border-slate-200 rounded-lg pl-8 pr-8 text-[11px] font-medium text-slate-700 outline-none focus:border-blue-500 appearance-none bg-white cursor-pointer">
-              <option value="public">সবার জন্য উন্মুক্ত (Public)</option>
-              <option value="private">শুধুমাত্র আমি (Private)</option>
-            </select>
-            <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-slate-500">
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
-            </div>
-          </div>
-        </div>
-
+      <div className="px-4 sm:px-5 py-3 border-t border-slate-200 bg-slate-50/50 flex flex-row justify-end items-center gap-3">
         {/* Buttons */}
         <div className="flex justify-end gap-2 w-full sm:w-auto pt-1 sm:pt-0">
           <button type="button" onClick={onClose} className="px-4 py-2 bg-white border border-slate-300 text-slate-700 rounded-lg text-[12px] font-medium hover:bg-slate-50 transition w-full sm:w-auto">
@@ -578,35 +705,35 @@ export default function CreateCaseInline({ onClose, onSuccess, imgUrl }: { onClo
       {/* Lightbox Modal */}
       {previewMediaIndex !== null && (
         <div className="fixed inset-0 z-[99999] bg-black/90 flex flex-col items-center justify-center p-4">
-          <button 
+          <button
             className="absolute top-4 right-4 text-white/70 hover:text-white p-2 z-50"
             onClick={() => setPreviewMediaIndex(null)}
           >
             <X size={32} />
           </button>
-          
+
           <div className="w-full max-w-5xl h-[80vh] flex items-center justify-center relative bg-black/40 rounded-lg overflow-hidden border border-white/10">
             <MediaPreview file={selectedFiles[previewMediaIndex]?.file} />
-            
+
             {previewMediaIndex > 0 && (
-              <button 
+              <button
                 className="absolute left-4 p-3 rounded-full bg-black/50 text-white hover:bg-black/80 transition"
                 onClick={(e) => { e.stopPropagation(); setPreviewMediaIndex(previewMediaIndex - 1); }}
               >
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m15 18-6-6 6-6"/></svg>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m15 18-6-6 6-6" /></svg>
               </button>
             )}
-            
+
             {previewMediaIndex < selectedFiles.length - 1 && (
-              <button 
+              <button
                 className="absolute right-4 p-3 rounded-full bg-black/50 text-white hover:bg-black/80 transition"
                 onClick={(e) => { e.stopPropagation(); setPreviewMediaIndex(previewMediaIndex + 1); }}
               >
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m9 18 6-6-6-6"/></svg>
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="m9 18 6-6-6-6" /></svg>
               </button>
             )}
           </div>
-          
+
           <div className="mt-4 text-white/70 text-sm font-medium bg-black/50 px-4 py-1.5 rounded-full mb-3">
             {previewMediaIndex + 1} / {selectedFiles.length}
           </div>
@@ -614,7 +741,7 @@ export default function CreateCaseInline({ onClose, onSuccess, imgUrl }: { onClo
           {/* Bottom Thumbnail Strip */}
           <div className="flex items-center justify-center gap-2 max-w-full overflow-x-auto p-2 pb-4">
             {selectedFiles.map((f, idx) => (
-              <div 
+              <div
                 key={idx}
                 className={`relative h-16 w-16 shrink-0 rounded-md overflow-hidden border-2 cursor-grab active:cursor-grabbing transition-all group ${idx === previewMediaIndex ? 'border-blue-500 opacity-100 scale-110 shadow-[0_0_15px_rgba(59,130,246,0.5)]' : 'border-transparent opacity-50 hover:opacity-100'}`}
                 draggable
@@ -624,14 +751,14 @@ export default function CreateCaseInline({ onClose, onSuccess, imgUrl }: { onClo
                 onClick={() => setPreviewMediaIndex(idx)}
               >
                 {f.state === 'processing' && (
-                   <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-10">
-                      <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
-                   </div>
+                  <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-10">
+                    <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                  </div>
                 )}
                 {f.state === 'error' && (
-                   <div className="absolute inset-0 bg-red-500/80 flex flex-col items-center justify-center z-10 p-1">
-                      <span className="text-[8px] text-white text-center font-bold leading-tight" title={f.error}>Failed</span>
-                   </div>
+                  <div className="absolute inset-0 bg-red-500/80 flex flex-col items-center justify-center z-10 p-1">
+                    <span className="text-[8px] text-white text-center font-bold leading-tight" title={f.error}>Failed</span>
+                  </div>
                 )}
                 <button
                   type="button"
@@ -653,9 +780,9 @@ export default function CreateCaseInline({ onClose, onSuccess, imgUrl }: { onClo
                 {f.file.type.startsWith('image/') ? (
                   <img src={f.previewUrl} alt="thumb" className="w-full h-full object-cover pointer-events-none" />
                 ) : f.file.type.startsWith('video/') ? (
-                   <div className="w-full h-full bg-slate-800 flex items-center justify-center pointer-events-none"><Video size={20} className="text-white/70"/></div>
+                  <div className="w-full h-full bg-slate-800 flex items-center justify-center pointer-events-none"><Video size={20} className="text-white/70" /></div>
                 ) : (
-                   <div className="w-full h-full bg-slate-800 flex items-center justify-center pointer-events-none"><FileText size={20} className="text-white/70"/></div>
+                  <div className="w-full h-full bg-slate-800 flex items-center justify-center pointer-events-none"><FileText size={20} className="text-white/70" /></div>
                 )}
               </div>
             ))}

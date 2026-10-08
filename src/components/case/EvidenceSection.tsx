@@ -4,11 +4,13 @@ import { resolveMediaUrl, formatBengaliTime } from '@/lib/utils';
 import { FileText, Camera, Link as LinkIcon, User, Flag, ArrowUpRight } from 'lucide-react';
 import MediaGrid from '@/components/shared/MediaGrid';
 import EvidenceValidation from './EvidenceValidation';
+import { useGetClaimUpdatesQuery } from '@/redux/feature/case/case.reducer';
 
-export default function EvidenceSection({ caseData, onAddEvidenceClick, hideFilter }: { caseData: TCaseType, onAddEvidenceClick?: () => void, hideFilter?: boolean }) {
+export default function EvidenceSection({ caseData, onAddEvidenceClick, hideFilter, highlightedEvidenceIds = [], highlightedSourceIds = [] }: { caseData: TCaseType, onAddEvidenceClick?: () => void, hideFilter?: boolean, highlightedEvidenceIds?: string[], highlightedSourceIds?: string[] }) {
    const [filterType, setFilterType] = useState<'ALL' | 'SUPPORTS' | 'CHALLENGES' | 'CONTEXT'>('ALL');
 
    const selectedClaim = caseData.claims?.[0];
+   const { data: updatesData } = useGetClaimUpdatesQuery({ claimId: selectedClaim?.id, limit: 20 }, { skip: !selectedClaim?.id });
    if (!selectedClaim) return null;
 
    const rawEvidence = selectedClaim.evidence || [];
@@ -40,9 +42,9 @@ export default function EvidenceSection({ caseData, onAddEvidenceClick, hideFilt
       }
 
       const creatorId = ev.submittedBy;
-      const creatorName = ev.creator?.fullName || ev.creator?.userName;
+      const creatorName = ev.submitter?.fullName || ev.submitter?.userName;
       const isMainAuthor = creatorId === caseData.author?.id;
-      const authorLabel = isMainAuthor ? 'মূল লেখক' : (creatorName || 'নাম প্রকাশে অনিচ্ছুক');
+      const authorLabel = isMainAuthor ? 'মূল লেখক' : (ev.isAnonymous ? 'নাম প্রকাশে অনিচ্ছুক' : (creatorName || 'নাম প্রকাশে অনিচ্ছুক'));
 
       contributions.push({
          id: ev.id,
@@ -67,7 +69,7 @@ export default function EvidenceSection({ caseData, onAddEvidenceClick, hideFilt
       const creatorId = src.createdBy;
       const creatorName = src.creator?.fullName || src.creator?.userName;
       const isMainAuthor = creatorId === caseData.author?.id;
-      const authorLabel = isMainAuthor ? 'মূল লেখক' : (creatorName || 'নাম প্রকাশে অনিচ্ছুক');
+      const authorLabel = isMainAuthor ? 'মূল লেখক' : (src.isAnonymous ? 'নাম প্রকাশে অনিচ্ছুক' : (creatorName || 'নাম প্রকাশে অনিচ্ছুক'));
 
       contributions.push({
          id: src.id,
@@ -100,8 +102,8 @@ export default function EvidenceSection({ caseData, onAddEvidenceClick, hideFilt
                <button
                   onClick={() => setFilterType('ALL')}
                   className={`px-3 py-1.5 rounded-md text-[11px] font-bold transition ${filterType === 'ALL'
-                        ? 'bg-slate-800 text-white shadow-sm'
-                        : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+                     ? 'bg-slate-800 text-white shadow-sm'
+                     : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
                      }`}
                >
                   All {contributions.length}
@@ -109,8 +111,8 @@ export default function EvidenceSection({ caseData, onAddEvidenceClick, hideFilt
                <button
                   onClick={() => setFilterType('SUPPORTS')}
                   className={`px-3 py-1.5 rounded-md text-[11px] font-bold transition ${filterType === 'SUPPORTS'
-                        ? 'bg-emerald-100 text-emerald-800 shadow-sm border border-emerald-200'
-                        : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+                     ? 'bg-emerald-100 text-emerald-800 shadow-sm border border-emerald-200'
+                     : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
                      }`}
                >
                   Supports {supportsCount}
@@ -118,8 +120,8 @@ export default function EvidenceSection({ caseData, onAddEvidenceClick, hideFilt
                <button
                   onClick={() => setFilterType('CHALLENGES')}
                   className={`px-3 py-1.5 rounded-md text-[11px] font-bold transition ${filterType === 'CHALLENGES'
-                        ? 'bg-rose-100 text-rose-800 shadow-sm border border-rose-200'
-                        : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+                     ? 'bg-rose-100 text-rose-800 shadow-sm border border-rose-200'
+                     : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
                      }`}
                >
                   Challenges {challengesCount}
@@ -127,8 +129,8 @@ export default function EvidenceSection({ caseData, onAddEvidenceClick, hideFilt
                <button
                   onClick={() => setFilterType('CONTEXT')}
                   className={`px-3 py-1.5 rounded-md text-[11px] font-bold transition ${filterType === 'CONTEXT'
-                        ? 'bg-slate-100 text-slate-800 shadow-sm border border-slate-200'
-                        : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+                     ? 'bg-slate-100 text-slate-800 shadow-sm border border-slate-200'
+                     : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
                      }`}
                >
                   Context {contextCount}
@@ -150,8 +152,10 @@ export default function EvidenceSection({ caseData, onAddEvidenceClick, hideFilt
                   const relIcon = isSupports ? '🟢' : isChallenges ? '🔴' : '🟡';
                   const borderColor = isSupports ? 'border-emerald-300' : isChallenges ? 'border-rose-300' : 'border-amber-300';
 
+                  const bgTouch = isSupports ? 'bg-emerald-50/30' : isChallenges ? 'bg-rose-50/30' : 'bg-amber-50/30';
+
                   return (
-                     <div key={c.id} className={`pl-4 py-3 border-l-4 ${borderColor} transition-colors mb-2`}>
+                     <div key={c.id} id={`evidence-item-${c.id}`} className={`p-4 rounded-xl ${bgTouch} border border-slate-200/60 shadow-xs transition-all duration-500 mb-3`}>
                         {/* Meta Info Header */}
                         <div className="flex items-start justify-between mb-3 pb-3 border-b border-slate-100">
                            <div className="flex flex-col gap-1.5">
@@ -164,10 +168,41 @@ export default function EvidenceSection({ caseData, onAddEvidenceClick, hideFilt
                                        <span className="text-slate-300">·</span>
                                     </>
                                  )}
-                                 <span className="text-slate-500">{formatBengaliTime(c.createdAt)}</span>
                               </div>
+
+
                               <div className="flex items-center gap-1.5 font-semibold text-xs">
-                                 {relIcon} <span className={isSupports ? 'text-emerald-700' : isChallenges ? 'text-rose-700' : 'text-slate-700'}>{relText}</span>
+                                 {relIcon}<span className="text-slate-500 text-xs">{formatBengaliTime(c.createdAt)}</span> <span className={isSupports ? 'text-emerald-700' : isChallenges ? 'text-rose-700' : 'text-slate-700'}>{relText}</span>
+                                 {(() => {
+                                    const updatesArray = updatesData?.data?.updates || updatesData?.updates || [];
+                                    const connectedUpdate = updatesArray.find((up: any) =>
+                                       (c.type === 'EVIDENCE' && up.evidence?.some((e: any) => e.evidenceId === c.id)) ||
+                                       (c.type === 'SOURCE_ONLY' && up.sources?.some((s: any) => s.sourceId === c.id)) ||
+                                       (c.source && up.sources?.some((s: any) => s.sourceId === c.source.id))
+                                    );
+                                    if (!connectedUpdate) return null;
+                                    return (
+                                       <span className="text-slate-500 font-normal truncate max-w-[200px] sm:max-w-[300px]">
+                                          {' '}(
+                                          <button
+                                             className="text-blue-600 hover:underline inline-block truncate align-bottom max-w-[150px] sm:max-w-[250px]"
+                                             onClick={() => {
+                                                const el = document.getElementById(`update-item-${connectedUpdate.id}`);
+                                                if (el) {
+                                                   el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                                   el.classList.add('bg-blue-50', 'ring-2', 'ring-blue-300', 'rounded-lg', 'transition-all', 'duration-500');
+                                                   setTimeout(() => {
+                                                      el.classList.remove('bg-blue-50', 'ring-2', 'ring-blue-300', 'rounded-lg');
+                                                   }, 3000);
+                                                }
+                                             }}
+                                          >
+                                             @{connectedUpdate.author?.userName || 'Anonymous'} - {connectedUpdate.content.slice(0, 30)}{connectedUpdate.content.length > 30 ? '...' : ''}
+                                          </button>
+                                          )
+                                       </span>
+                                    );
+                                 })()}
                               </div>
                            </div>
 

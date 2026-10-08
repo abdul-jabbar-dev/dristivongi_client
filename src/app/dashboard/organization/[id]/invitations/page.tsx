@@ -12,7 +12,7 @@ export default function OrgDashboardInvitations({ params }: { params: Promise<{ 
   const handleInvite = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await inviteMember({ id, email, role }).unwrap();
+      await inviteMember({ idOrSlug: id, emailOrUsername: email, role }).unwrap();
       setEmail('');
       alert('Invitation sent successfully.');
     } catch (err) {

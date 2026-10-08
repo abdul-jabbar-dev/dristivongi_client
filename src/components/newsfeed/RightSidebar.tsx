@@ -69,15 +69,18 @@ export default function RightSidebar() {
              <div className="flex justify-between items-start text-xs">
                <div className="flex-1 pr-2 overflow-hidden">
                  <p className="font-semibold text-slate-700 mb-2">সক্রিয় প্রধান বিষয়সমূহ</p>
-                 {activeCases.map(c => (
-                    <Link href={`/case/${c.id}`} key={c.id} className="block text-slate-500 mt-1.5 hover:underline truncate" title={c.title}>
-                       {c.title.length > 30 ? c.title.substring(0, 30) + '...' : c.title}
-                    </Link>
-                 ))}
+                 {activeCases.map((c, index) => {
+                    const rawTitle = c?.title || (c?.titleHtml ? c.titleHtml.replace(/<[^>]+>/g, '') : '') || 'নামবিহীন বিষয়';
+                    return (
+                      <Link href={`/case/${c.id}`} key={`case-${c.id || index}`} className="block text-slate-500 mt-1.5 hover:underline truncate" title={rawTitle}>
+                        {rawTitle.length > 30 ? rawTitle.substring(0, 30) + '...' : rawTitle}
+                      </Link>
+                    );
+                 })}
                </div>
                <div className="flex flex-col gap-1 items-end mt-6 shrink-0">
-                 {activeCases.map(c => (
-                    <span key={c.id} className={`${c.caseStatus === 'CLOSED' ? 'bg-slate-100 text-slate-700' : 'bg-emerald-100 text-emerald-700'} px-2 py-0.5 rounded text-[10px] font-bold whitespace-nowrap`}>
+                 {activeCases.map((c, index) => (
+                    <span key={`status-${c.id || index}`} className={`${c.caseStatus === 'CLOSED' ? 'bg-slate-100 text-slate-700' : 'bg-emerald-100 text-emerald-700'} px-2 py-0.5 rounded text-[10px] font-bold whitespace-nowrap`}>
                        {c.caseStatus === 'OPEN' ? 'তদন্তাধীন' : c.caseStatus === 'IN_PROGRESS' ? 'পদক্ষেপ চলছে' : 'মীমাংসিত'}
                     </span>
                  ))}
@@ -134,13 +137,16 @@ export default function RightSidebar() {
          <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
            <h3 className="text-sm font-bold text-slate-800 mb-3 border-b border-slate-100 pb-2">অনুরূপ বিষয়সমূহ</h3>
            <ul className="space-y-2 text-xs text-slate-700">
-              {similarCases.map(c => (
-                 <li key={c.id} className="truncate">
-                    <Link href={`/case/${c.id}`} className="cursor-pointer hover:text-slate-600 hover:underline" title={c.title}>
-                       {c.title}
-                    </Link>
-                 </li>
-              ))}
+              {similarCases.map((c, index) => {
+                 const rawTitle = c?.title || (c?.titleHtml ? c.titleHtml.replace(/<[^>]+>/g, '') : '') || 'নামবিহীন বিষয়';
+                 return (
+                   <li key={`similar-${c.id || index}`} className="truncate">
+                      <Link href={`/case/${c.id}`} className="cursor-pointer hover:text-slate-600 hover:underline" title={rawTitle}>
+                         {rawTitle}
+                      </Link>
+                   </li>
+                 );
+              })}
            </ul>
          </div>
       )}
@@ -151,13 +157,16 @@ export default function RightSidebar() {
            <h3 className="text-sm font-bold text-slate-800 mb-1 border-b border-slate-100 pb-2">কাছাকাছি বিষয়সমূহ</h3>
            <p className="text-[10px] text-slate-500 mb-2">Based on location → local problems</p>
            <ul className="space-y-2 text-xs text-slate-700">
-              {nearbyCases.map(c => (
-                 <li key={c.id} className="truncate">
-                    <Link href={`/case/${c.id}`} className="cursor-pointer hover:text-slate-600 hover:underline" title={c.title}>
-                       {c.title}
-                    </Link>
-                 </li>
-              ))}
+              {nearbyCases.map((c, index) => {
+                 const rawTitle = c?.title || (c?.titleHtml ? c.titleHtml.replace(/<[^>]+>/g, '') : '') || 'নামবিহীন বিষয়';
+                 return (
+                   <li key={`nearby-${c.id || index}`} className="truncate">
+                      <Link href={`/case/${c.id}`} className="cursor-pointer hover:text-slate-600 hover:underline" title={rawTitle}>
+                         {rawTitle}
+                      </Link>
+                   </li>
+                 );
+              })}
            </ul>
          </div>
       )}

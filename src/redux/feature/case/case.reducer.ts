@@ -7,7 +7,7 @@ import { TCaseType } from './case.type'
 export const CASE_Api = createApi({
     reducerPath: 'caseApi',
     baseQuery: baseQueryWithReauth,
-    tagTypes: ['Case', 'CaseList', 'Assessment', 'EvidenceValidation'],
+    tagTypes: ['Case', 'CaseList', 'Assessment', 'EvidenceValidation', 'ClaimUpdates', 'ClaimUpdatePermissions'],
     endpoints: (builder) => ({
         newsFeed: builder.query<{ data: TCaseType[], nextPage: number | null }, { tag?: string, author?: string, page?: number } | void>({
             query: (params) => {
@@ -27,8 +27,10 @@ export const CASE_Api = createApi({
                 const { page, ...rest } = queryArgs || {};
                 return rest;
             },
-            merge: (currentCache, newItems) => {
-                if (newItems.data) {
+            merge: (currentCache, newItems, { arg }) => {
+                if (!arg?.page || arg?.page === 1) {
+                    currentCache.data = newItems.data || [];
+                } else if (newItems.data) {
                     currentCache.data.push(...newItems.data);
                 }
                 currentCache.nextPage = newItems.nextPage;
@@ -38,13 +40,10 @@ export const CASE_Api = createApi({
             },
             transformResponse: (response: any) => {
                 const nextPage = response?.data?.nextPage || null;
-                if (response?.data?.data) {
-                    return { data: response.data.data, nextPage };
-                }
-                if (response?.data?.items) {
-                    return { data: response.data.items, nextPage };
-                }
-                return { data: response?.data || [], nextPage };
+                let rawItems = response?.data?.data || response?.data?.items || response?.data || [];
+                if (!Array.isArray(rawItems)) rawItems = [];
+                const data = rawItems.map((item: any) => item?.case ? { ...item.case, feedContext: item.context } : item);
+                return { data, nextPage };
             },
             providesTags: ['CaseList'],
         }),
@@ -266,8 +265,36 @@ export const CASE_Api = createApi({
                 }
             },
             invalidatesTags: (result, error, arg) => [{ type: 'Case', id: arg.caseId }, 'CaseList'],
-        })
+        }),
+        getClaimUpdates: builder.query<any, { claimId: string, limit?: number, cursor?: string }>({
+            query: ({ claimId, limit = 20, cursor }) => {
+                let url = `case/claims/${claimId}/updates?limit=${limit}`;
+                if (cursor) url += `&cursor=${cursor}`;
+                return url;
+            },
+            providesTags: ['ClaimUpdates'],
+        }),
+        getClaimUpdatePermissions: builder.query<any, string>({
+            query: (claimId) => `case/claims/${claimId}/updates/permissions`,
+            providesTags: ['ClaimUpdatePermissions'],
+        }),
+        createClaimUpdate: builder.mutation<any, { claimId: string, formData: FormData }>({
+            query: ({ claimId, formData }) => ({
+                url: `case/claims/${claimId}/updates`,
+                method: 'POST',
+                body: formData,
+            }),
+            invalidatesTags: ['ClaimUpdates', 'ClaimUpdatePermissions', 'Case', 'CaseList'],
+        }),
+        updateCaseSettings: builder.mutation<any, { caseId: string, settings: { canUserCreateClaim?: boolean, canUserCreateClaimEvidence?: boolean, canUserCreateClaimUpdate?: boolean } }>({
+            query: ({ caseId, settings }) => ({
+                url: `case/${caseId}/settings`,
+                method: 'PATCH',
+                body: settings,
+            }),
+            invalidatesTags: (result, error, arg) => [{ type: 'Case', id: arg.caseId }, 'ClaimUpdatePermissions'],
+        }),
     }),
 })
 
-export const { useNewsFeedQuery, useCaseDetailsQuery, useCreateCaseMutation, useCreateClaimMutation, useAddEvidenceMutation, useAddCaseEvidenceMutation, useGetAssessmentsQuery, useSubmitAssessmentMutation, useImportUrlMutation, useSubmitEvidenceValidationMutation, useGetEvidenceValidationQuery, useSubmitCaseReactionMutation } = CASE_Api
+export const { useNewsFeedQuery, useCaseDetailsQuery, useCreateCaseMutation, useCreateClaimMutation, useAddEvidenceMutation, useAddCaseEvidenceMutation, useGetAssessmentsQuery, useSubmitAssessmentMutation, useImportUrlMutation, useSubmitEvidenceValidationMutation, useGetEvidenceValidationQuery, useSubmitCaseReactionMutation, useGetClaimUpdatesQuery, useGetClaimUpdatePermissionsQuery, useCreateClaimUpdateMutation, useUpdateCaseSettingsMutation } = CASE_Api

@@ -48,7 +48,8 @@ const CardMediaPreview = ({ media, resolveMediaUrl }: { media: any, resolveMedia
    );
 };
 
-export default function CaseCard({ c }: { c: TCaseType }) {
+export default function CaseCard({ c: rawC }: { c: TCaseType }) {
+   const c = (rawC as any)?.case || rawC;
    const [showComments, setShowComments] = useState(false);
    const timeStr = formatBengaliTime(c.createdAt);
 
@@ -73,7 +74,7 @@ export default function CaseCard({ c }: { c: TCaseType }) {
    let sourcesCount = c.stats?.sourceCount ?? 0;
 
    if (!c.stats) {
-      c.claims?.forEach(claim => {
+      c.claims?.forEach((claim: any) => {
          evidenceCount += claim.evidence?.length || 0;
          sourcesCount += claim.sources?.length || 0;
       });
@@ -81,16 +82,16 @@ export default function CaseCard({ c }: { c: TCaseType }) {
 
    // Extract all media from case and claims
    const allMedias: { type: string, url: string, label: string }[] = [];
-   c.medias?.forEach(m => {
+   c.medias?.forEach((m: any) => {
       const mime = m.media?.type?.toLowerCase() || '';
       let label = 'Photo';
       if (mime.includes('video')) label = 'Video';
       else if (mime.includes('pdf') || mime.includes('document')) label = 'Document';
       allMedias.push({ type: mime || 'IMAGE', url: m.media?.url || '', label });
    });
-   c.claims?.forEach(claim => {
-      claim.evidence?.forEach(ce => {
-         ce.evidence?.medias?.forEach(em => {
+   c.claims?.forEach((claim: any) => {
+      claim.evidence?.forEach((ce: any) => {
+         ce.evidence?.medias?.forEach((em: any) => {
             const mime = em.media?.type?.toLowerCase() || '';
             let label = 'Photo';
             if (mime.includes('video')) label = 'Video';
@@ -108,12 +109,12 @@ export default function CaseCard({ c }: { c: TCaseType }) {
 
          {/* Author, Category & Options */}
          <div className="flex items-start justify-between mb-4">
-            <Link href={`/profile/${c.author?.userName || c.author?.id || ''}`} className="flex items-center gap-3 group">
+            <Link href={c.isAnonymous ? '#' : `/profile/${c.author?.userName || c.author?.id || ''}`} className="flex items-center gap-3 group">
                <img src={getAvatarUrl(c.author)} alt="Author" className="w-10 h-10 object-cover rounded-full border border-slate-200 shadow-sm group-hover:shadow-md transition" />
                <div className="flex flex-col">
                   <div className="text-sm font-bold text-slate-900 group-hover:text-blue-600 transition">
-                     {c.author?.fullName || c.author?.userName || 'Anonymous'}
-                     <span className="font-normal text-slate-500 text-xs ml-1 group-hover:text-slate-600">({c.author?.userName || 'নাগরিক'}, {c.location || 'ঢাকা'})</span>
+                     {c.isAnonymous ? 'গোপন নাগরিক (Whistleblower)' : c.author?.fullName || c.author?.userName || 'নাগরিক'}
+                     <span className="font-normal text-slate-500 text-xs ml-1 group-hover:text-slate-600">({c.isAnonymous ? 'গোপন' : c.author?.userName || 'নাগরিক'}{c.location ? `, ${c.location}` : ''})</span>
                   </div>
                   <div className="flex items-center gap-1.5 text-xs text-slate-500 mt-0.5">
                      <span className="font-bold text-slate-600 text-[10px] uppercase tracking-wider">বিষয়</span>
@@ -137,7 +138,7 @@ export default function CaseCard({ c }: { c: TCaseType }) {
                         ''
                   }`}
             >
-               <MarkdownRenderer content={removeHashtags(c.titleHtml || c.title, c.tags?.map(t => t.tag.name) || [])} />
+               <MarkdownRenderer content={removeHashtags(c.titleHtml || c.title || '', c.tags?.map((t: any) => t.tag.name) || [])} />
             </div>
 
             {/* Show "See more" if we are at Level 0 and content is > 400px */}
@@ -338,7 +339,25 @@ export default function CaseCard({ c }: { c: TCaseType }) {
 
          {/* LinkedIn Style Comments Section */}
          {showComments && (
-            <DiscussionComments targetType="CASE" targetId={c.id} />
+            <DiscussionComments 
+               targetType="CASE" 
+               targetId={c.id} 
+               mentionSuggestions={(c.claims || []).map((cl: any) => ({
+                  id: cl.id,
+                  type: 'CLAIM',
+                  prefix: '#claim-',
+                  title: cl.title,
+                  author: cl.creator?.fullName,
+                  date: cl.createdAt
+               }))}
+               userSuggestions={c.author ? [{
+                  id: c.author.id,
+                  userName: c.author.userName || (c.author.fullName ? c.author.fullName.toLowerCase().replace(/\s+/g, '') : c.author.id),
+                  fullName: c.author.fullName || c.author.userName,
+                  avatar: getAvatarUrl(c.author),
+                  role: 'লেখক'
+               }] : []}
+            />
          )}
 
          {/* Lightbox Modal */}

@@ -4,6 +4,8 @@ import { CASE_Api } from './feature/case/case.reducer'
 import { OPINION_Api } from './feature/opinion/opinion.reducer'
 import { TAG_Api } from './feature/tag/tag.reducer'
 import { organizationApi } from './feature/organization/organizationApi'
+import { feedApi } from './feature/feed/feedApi'
+import { searchApi } from './feature/search/searchApi'
 import authReducer from './feature/auth/auth.slice'
 
 export const makeStore = () => {
@@ -15,9 +17,19 @@ export const makeStore = () => {
             [OPINION_Api.reducerPath]: OPINION_Api.reducer,
             [TAG_Api.reducerPath]: TAG_Api.reducer,
             [organizationApi.reducerPath]: organizationApi.reducer,
+            [feedApi.reducerPath]: feedApi.reducer,
+            [searchApi.reducerPath]: searchApi.reducer,
         },
         middleware: (getDefaultMiddleware) =>
-            getDefaultMiddleware().concat(USER_Api.middleware, CASE_Api.middleware, OPINION_Api.middleware, TAG_Api.middleware, organizationApi.middleware),
+            getDefaultMiddleware().concat(
+                USER_Api.middleware,
+                CASE_Api.middleware,
+                OPINION_Api.middleware,
+                TAG_Api.middleware,
+                organizationApi.middleware,
+                feedApi.middleware,
+                searchApi.middleware
+            ),
     })
 }
 

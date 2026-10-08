@@ -1,7 +1,7 @@
 'use client';
 import React from 'react';
 import { useGetOrganizationByIdQuery } from '../../../../redux/feature/organization/organizationApi';
-import { OrganizationVerificationBadge } from '../../../../components/organization/OrganizationVerificationBadge';
+
 
 export default function OrgDashboardOverview({ params }: { params: Promise<{ id: string }> }) {
   const { id } = React.use(params);
@@ -16,31 +16,10 @@ export default function OrgDashboardOverview({ params }: { params: Promise<{ id:
     <div>
       <h1 className="text-3xl font-bold mb-6">Organization Overview</h1>
       
-      {org.verificationStatus === 'PENDING_VERIFICATION' && (
-        <div className="bg-yellow-50 border border-yellow-200 p-6 rounded-xl mb-6">
-          <h2 className="text-yellow-800 font-bold text-lg mb-2">Pending Admin Verification</h2>
-          <p className="text-yellow-700">Your organization is currently being reviewed by CivicLens. Public discovery is restricted until verified.</p>
-        </div>
-      )}
-
-      {org.verificationStatus === 'REJECTED' && (
-        <div className="bg-red-50 border border-red-200 p-6 rounded-xl mb-6">
-          <h2 className="text-red-800 font-bold text-lg mb-2">Verification Rejected</h2>
-          <p className="text-red-700">Reason: {org.rejectionReason || 'No reason provided.'}</p>
-        </div>
-      )}
-
-      {org.status === 'SUSPENDED' && (
-        <div className="bg-red-50 border border-red-200 p-6 rounded-xl mb-6">
-          <h2 className="text-red-800 font-bold text-lg mb-2">Organization Suspended</h2>
-          <p className="text-red-700">Reason: {org.suspensionReason || 'Violation of terms.'}</p>
-        </div>
-      )}
-
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
          <div className="bg-white p-6 border rounded-xl shadow-sm">
             <h3 className="font-semibold text-gray-500 mb-1">Status</h3>
-            <div className="mt-2"><OrganizationVerificationBadge status={org.verificationStatus} /></div>
+            <div className="mt-2 text-lg font-bold">{org.status}</div>
          </div>
          <div className="bg-white p-6 border rounded-xl shadow-sm">
             <h3 className="font-semibold text-gray-500 mb-1">Visibility</h3>

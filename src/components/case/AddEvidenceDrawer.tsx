@@ -12,9 +12,10 @@ interface AddEvidenceDrawerProps {
    caseId: string;
    claimId?: string;
    isModal?: boolean;
+   isNotShowAnonymous?: boolean;
 }
 
-export default function AddEvidenceForm({ isOpen, onClose, caseId, claimId, isModal }: AddEvidenceDrawerProps) {
+export default function AddEvidenceForm({ isOpen, onClose, caseId, claimId, isModal, isNotShowAnonymous = false }: AddEvidenceDrawerProps) {
    const [addEvidence, { isLoading: isClaimLoading }] = useAddEvidenceMutation();
    const [addCaseEvidence, { isLoading: isCaseLoading }] = useAddCaseEvidenceMutation();
 
@@ -115,13 +116,14 @@ export default function AddEvidenceForm({ isOpen, onClose, caseId, claimId, isMo
          <form id="add-evidence-form" onSubmit={handleSubmit} className="flex flex-col">
 
             <div className={`p-4 pb-0 relative transition-colors ${isAnonymous ? 'bg-slate-100/50' : 'bg-transparent'}`}>
-               <div className="flex justify-between items-center mb-2">
-                  <AnonymousToggle isAnonymous={isAnonymous} onChange={setIsAnonymous} />
-                  <button type="button" onClick={onClose} className="text-slate-400 hover:text-slate-600 bg-slate-50 hover:bg-slate-100 p-1.5 rounded-full transition">
-                     <X size={16} />
-                  </button>
-               </div>
-
+               {!isNotShowAnonymous && (
+                  <div className="flex justify-between items-center mb-2">
+                     <AnonymousToggle isAnonymous={isAnonymous} onChange={setIsAnonymous} />
+                     <button type="button" onClick={onClose} className="text-slate-400 hover:text-slate-600 bg-slate-50 hover:bg-slate-100 p-1.5 rounded-full transition">
+                        <X size={16} />
+                     </button>
+                  </div>
+               )}
                <textarea
                   value={text}
                   onChange={e => setText(e.target.value)}

@@ -17,7 +17,7 @@ export default function ProfileClient({ username }: { username: string }) {
   const { data: casesData, isLoading: isCasesLoading } = useNewsFeedQuery(data?.data?.userName ? { author: data.data.userName } : skipToken);
   const currentUser = useSelector((state: RootState) => state.auth.user);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState<'overview' | 'cases' | 'contributions'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'cases' | 'contributions' | 'organizations'>('overview');
 
   if (isLoading) {
     return (
@@ -35,8 +35,8 @@ export default function ProfileClient({ username }: { username: string }) {
       <div className="w-full max-w-4xl mx-auto mt-20 text-center text-slate-500">
         <h2 className="text-2xl font-bold mb-2">User not found</h2>
         <p className="mb-6">এই ব্যবহারকারীর প্রোফাইল পাওয়া যায়নি।</p>
-        <button 
-          onClick={() => window.location.href = '/explore'} 
+        <button
+          onClick={() => window.location.href = '/explore'}
           className="px-6 py-2 bg-blue-600 text-white font-medium rounded-full hover:bg-blue-700 transition"
         >
           Explore Cases
@@ -56,7 +56,7 @@ export default function ProfileClient({ username }: { username: string }) {
 
   return (
     <div className="w-full max-w-5xl mx-auto mt-4 sm:mt-8 px-0 sm:px-4 mb-16">
-      
+
       {/* Profile Header Card */}
       <div className="bg-white sm:rounded-2xl shadow-sm border-x sm:border border-slate-200 overflow-hidden mb-6">
         {/* Cover Image */}
@@ -80,7 +80,7 @@ export default function ProfileClient({ username }: { username: string }) {
                 </div>
               )}
             </div>
-            
+
             <div className="flex gap-3 z-10 sm:mb-4">
               {isOwner ? (
                 <button
@@ -109,7 +109,7 @@ export default function ProfileClient({ username }: { username: string }) {
             <p className="text-slate-500 font-medium mb-3">
               {profile.userName ? `@${profile.userName}` : 'Username not set'}
             </p>
-            
+
             <p className="text-slate-800 font-medium text-sm sm:text-base max-w-2xl whitespace-pre-wrap leading-relaxed">
               {profile.userProfile?.bio || 'Civic Contributor'}
             </p>
@@ -140,14 +140,13 @@ export default function ProfileClient({ username }: { username: string }) {
         {/* Navigation Tabs */}
         <div className="px-4 sm:px-8 flex overflow-x-auto border-t border-slate-100 scrollbar-hide">
           <div className="flex gap-1 sm:gap-6 min-w-max">
-            {(['overview', 'cases', 'contributions'] as const).map((tab) => (
-              <button 
+            {(['overview', 'cases', 'contributions', 'organizations'] as const).map((tab) => (
+              <button
                 key={tab}
-                className={`px-4 py-4 font-bold text-sm border-b-[3px] transition-colors whitespace-nowrap ${
-                  activeTab === tab 
-                    ? 'border-blue-600 text-blue-600' 
+                className={`px-4 py-4 font-bold text-sm border-b-[3px] transition-colors whitespace-nowrap ${activeTab === tab
+                    ? 'border-blue-600 text-blue-600'
                     : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'
-                }`}
+                  }`}
                 onClick={() => setActiveTab(tab)}
               >
                 {tab.charAt(0).toUpperCase() + tab.slice(1)}
@@ -156,20 +155,20 @@ export default function ProfileClient({ username }: { username: string }) {
           </div>
         </div>
       </div>
-      
+
       {/* 2-Column Main Content Layout */}
       <div className="flex flex-col lg:flex-row gap-6 px-4 sm:px-0">
-        
+
         {/* Left Column (Sidebar) */}
         <div className="w-full lg:w-[340px] shrink-0 space-y-6">
-          
+
           {/* Civic Activity Identity Card */}
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
             <h2 className="text-base font-bold text-slate-800 mb-4 flex items-center gap-2">
               <Activity size={18} className="text-blue-500" />
               Civic Activity
             </h2>
-            
+
             <div className="space-y-3">
               <div className="flex items-center justify-between text-sm">
                 <div className="flex items-center gap-2 text-slate-600 font-medium">
@@ -202,65 +201,65 @@ export default function ProfileClient({ username }: { username: string }) {
 
           {/* About / Meta Card */}
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-5">
-             <h2 className="text-base font-bold text-slate-800 mb-4 flex items-center gap-2">
-                <Shield size={18} className="text-slate-500" />
-                About
-             </h2>
-             <div className="space-y-4 text-sm text-slate-600">
-                {profile.userProfile?.bio && (
-                  <div>
-                    <p className="leading-relaxed">{profile.userProfile.bio}</p>
-                  </div>
-                )}
-                {profile.userProfile?.location && (
-                  <div className="flex items-center gap-2">
-                    <MapPin size={16} className="text-slate-400" />
-                    <span className="font-medium">{profile.userProfile.location}</span>
-                  </div>
-                )}
-                <div className="flex items-center gap-2">
-                  <Calendar size={16} className="text-slate-400" />
-                  <span className="font-medium">Joined {new Date(profile.createdAt || Date.now()).getFullYear()}</span>
+            <h2 className="text-base font-bold text-slate-800 mb-4 flex items-center gap-2">
+              <Shield size={18} className="text-slate-500" />
+              About
+            </h2>
+            <div className="space-y-4 text-sm text-slate-600">
+              {profile.userProfile?.bio && (
+                <div>
+                  <p className="leading-relaxed">{profile.userProfile.bio}</p>
                 </div>
-             </div>
+              )}
+              {profile.userProfile?.location && (
+                <div className="flex items-center gap-2">
+                  <MapPin size={16} className="text-slate-400" />
+                  <span className="font-medium">{profile.userProfile.location}</span>
+                </div>
+              )}
+              <div className="flex items-center gap-2">
+                <Calendar size={16} className="text-slate-400" />
+                <span className="font-medium">Joined {new Date(profile.createdAt || Date.now()).getFullYear()}</span>
+              </div>
+            </div>
           </div>
 
         </div>
 
         {/* Right Column (Main Feed) */}
         <div className="flex-1 min-w-0">
-          
+
           {/* Overview Tab Content */}
           {activeTab === 'overview' && (
             <div className="space-y-6">
-               {isCasesLoading ? (
+              {isCasesLoading ? (
                 <div className="flex justify-center py-10 bg-white rounded-2xl border border-slate-200">
                   <Loader2 className="w-8 h-8 text-slate-400 animate-spin" />
                 </div>
-               ) : casesData?.data && casesData.data.length > 0 ? (
-                 <>
-                   <h3 className="text-lg font-bold text-slate-800 px-1">Recent Cases</h3>
-                   <div className="space-y-4">
-                     {casesData.data.slice(0, 3).map((c: any, index: number) => (
-                       <CaseCard key={`overview-${c.id}-${index}`} c={c} />
-                     ))}
-                   </div>
-                   {casesData.data.length > 3 && (
-                     <button 
-                        onClick={() => setActiveTab('cases')}
-                        className="w-full py-3 bg-slate-50 hover:bg-slate-100 text-slate-700 font-bold rounded-xl border border-slate-200 transition text-sm text-center"
-                     >
-                       View all cases
-                     </button>
-                   )}
-                 </>
-               ) : (
+              ) : casesData?.data && casesData.data.length > 0 ? (
+                <>
+                  <h3 className="text-lg font-bold text-slate-800 px-1">Recent Cases</h3>
+                  <div className="space-y-4">
+                    {casesData.data.slice(0, 3).map((c: any, index: number) => (
+                      <CaseCard key={`overview-${c.id}-${index}`} c={c} />
+                    ))}
+                  </div>
+                  {casesData.data.length > 3 && (
+                    <button
+                      onClick={() => setActiveTab('cases')}
+                      className="w-full py-3 bg-slate-50 hover:bg-slate-100 text-slate-700 font-bold rounded-xl border border-slate-200 transition text-sm text-center"
+                    >
+                      View all cases
+                    </button>
+                  )}
+                </>
+              ) : (
                 <div className="text-center py-16 bg-white border border-slate-200 rounded-2xl">
                   <FileCheck size={48} className="mx-auto text-slate-200 mb-4" />
                   <h3 className="text-lg font-bold text-slate-700 mb-1">No Activity Yet</h3>
                   <p className="text-sm text-slate-500 max-w-xs mx-auto">This contributor hasn't published any public activity yet.</p>
                 </div>
-               )}
+              )}
             </div>
           )}
 
@@ -284,13 +283,48 @@ export default function ProfileClient({ username }: { username: string }) {
               )}
             </div>
           )}
-          
+
           {/* Contributions Tab Content */}
           {activeTab === 'contributions' && (
             <div className="text-center py-16 bg-white border border-slate-200 rounded-2xl">
-               <Activity size={48} className="mx-auto text-slate-200 mb-4" />
-               <h3 className="text-lg font-bold text-slate-700 mb-1">Contributions</h3>
-               <p className="text-sm text-slate-500">Evidence, claims, and source contributions will appear here.</p>
+              <Activity size={48} className="mx-auto text-slate-200 mb-4" />
+              <h3 className="text-lg font-bold text-slate-700 mb-1">Contributions</h3>
+              <p className="text-sm text-slate-500">Evidence, claims, and source contributions will appear here.</p>
+            </div>
+          )}
+
+          {/* Organizations Tab Content */}
+          {activeTab === 'organizations' && (
+            <div className="space-y-4">
+              {profile.organizationMemberships && profile.organizationMemberships.length > 0 ? (
+                profile.organizationMemberships.map((membership: any) => (
+                  <div key={membership.organizationId} className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-lg bg-slate-100 flex items-center justify-center font-bold text-slate-500 overflow-hidden">
+                        {membership.organization?.logoUrl ? (
+                          <img src={resolveMediaUrl(membership.organization.logoUrl)} alt="Org logo" className="w-full h-full object-cover" />
+                        ) : (
+                          membership.organization?.name?.charAt(0).toUpperCase()
+                        )}
+                      </div>
+                      <div>
+                        <h3 className="font-bold text-slate-900 text-lg">
+                          <a href={`/org/${membership.organization.slug}`} className="hover:underline">
+                            {membership.organization?.name}
+                          </a>
+                        </h3>
+                        <p className="text-sm text-slate-500 capitalize">{membership.role.toLowerCase()}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="text-center py-16 bg-white border border-slate-200 rounded-2xl">
+                  <Shield size={48} className="mx-auto text-slate-200 mb-4" />
+                  <h3 className="text-lg font-bold text-slate-700 mb-1">No Organizations</h3>
+                  <p className="text-sm text-slate-500">This user is not a member of any organization.</p>
+                </div>
+              )}
             </div>
           )}
 
@@ -299,9 +333,9 @@ export default function ProfileClient({ username }: { username: string }) {
       </div>
 
       {isEditModalOpen && (
-        <EditProfileModal 
-          profile={profile} 
-          onClose={() => setIsEditModalOpen(false)} 
+        <EditProfileModal
+          profile={profile}
+          onClose={() => setIsEditModalOpen(false)}
         />
       )}
     </div>

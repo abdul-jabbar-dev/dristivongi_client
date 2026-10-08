@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { TCaseType } from '@/redux/feature/case/case.type';
 import { Crown, Users, Camera, Link as LinkIcon, MessageSquare, MessageCircle, FileText, Edit, Plus, MapPin, ArrowUpRight, Menu, X, Search, ChevronDown } from 'lucide-react';
 import { resolveMediaUrl, getAvatarUrl } from '@/lib/utils';
 import EvidenceSection from './EvidenceSection';
+import ClaimUpdatesSection from './ClaimUpdatesSection';
 import AssessmentPoll from '@/components/opinion/AssessmentPoll';
 import StaticTestBadge from '@/components/common/StaticTestBadge';
 import AddEvidenceForm from './AddEvidenceDrawer';
 import DiscussionComments from '@/components/shared/DiscussionComments';
 import { useGetOpinionsQuery } from '@/redux/feature/opinion/opinion.reducer';
-import { useGetAssessmentsQuery } from '@/redux/feature/case/case.reducer';
+import { useGetAssessmentsQuery, useGetClaimUpdatesQuery } from '@/redux/feature/case/case.reducer';
 import { RootState } from '@/redux/store';
 import { useSelector } from 'react-redux';
 
@@ -29,8 +31,44 @@ export default function ClaimWorkspace({
    const [isAddEvidenceOpen, setIsAddEvidenceOpen] = useState(false);
    const [isClaimsPanelOpen, setIsClaimsPanelOpen] = useState(false);
    const [searchQuery, setSearchQuery] = useState('');
+   const [highlightedEvidenceIds, setHighlightedEvidenceIds] = useState<string[]>([]);
+   const [highlightedSourceIds, setHighlightedSourceIds] = useState<string[]>([]);
    const { isAuthenticated, user } = useSelector((state: RootState) => state.auth);
-   const isCaseCreator = user && (caseData.author?.id === user.id || (caseData as any).authorId === user.id);
+   const isCaseCreator = Boolean(user && (caseData.author?.id === user.id || (caseData as any).authorId === user.id));
+   const canUserCreateClaim = caseData.settings?.canUserCreateClaim ?? true;
+   const canUserCreateClaimEvidence = caseData.settings?.canUserCreateClaimEvidence ?? true;
+
+   const showCreateClaimAction = isCaseCreator || canUserCreateClaim;
+   const showAddEvidenceInput = isAuthenticated && (isCaseCreator || canUserCreateClaimEvidence);
+
+   const searchParams = useSearchParams();
+
+   useEffect(() => {
+      const claimEvids = searchParams?.get('claim_evid')?.split(',').filter(Boolean) || [];
+      const claimSrcids = searchParams?.get('claim_srcid')?.split(',').filter(Boolean) || [];
+
+      if (claimEvids.length > 0) setHighlightedEvidenceIds(claimEvids);
+      else setHighlightedEvidenceIds([]);
+
+      if (claimSrcids.length > 0) setHighlightedSourceIds(claimSrcids);
+      else setHighlightedSourceIds([]);
+
+      // Auto-switch to EVIDENCE tab if we have IDs
+      if (claimEvids.length > 0 || claimSrcids.length > 0) {
+         setActiveTab('EVIDENCE');
+         // Auto scroll down to specific evidence if not already in view
+         setTimeout(() => {
+            const firstId = claimEvids[0] || claimSrcids[0];
+            const el = document.getElementById(`evidence-item-${firstId}`);
+            if (el) {
+               el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            } else {
+               const container = document.getElementById('evidence-section-container');
+               if (container) container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+         }, 300);
+      }
+   }, [searchParams]);
 
    useEffect(() => {
       const handleEsc = (e: KeyboardEvent) => {
@@ -43,14 +81,165 @@ export default function ClaimWorkspace({
    const claims = caseData.claims || [];
    const selectedClaim = claims.find((c: any) => c.id === selectedClaimId) || claims[0];
 
+   const hasEvidence = Boolean(
+      (selectedClaim?.evidence && selectedClaim.evidence.length > 0) ||
+      (selectedClaim?.sources && selectedClaim.sources.length > 0)
+   );
+   const showEvidenceTab = showAddEvidenceInput || hasEvidence;
+
+   useEffect(() => {
+      if (!showEvidenceTab && activeTab === 'EVIDENCE') {
+         setActiveTab('DISCUSSION');
+      }
+   }, [showEvidenceTab, activeTab]);
+
    const { data: opinionsResponse } = useGetOpinionsQuery({ targetType: 'CLAIM', targetId: selectedClaim?.id }, { skip: !selectedClaim?.id });
    const { data: assessmentResponse } = useGetAssessmentsQuery(selectedClaim?.id, { skip: !selectedClaim?.id });
+   const { data: updatesData } = useGetClaimUpdatesQuery({ claimId: selectedClaim?.id, limit: 100 }, { skip: !selectedClaim?.id });
+
+   const [mentionSuggestions, setMentionSuggestions] = useState<any[]>([]);
+   const [userSuggestions, setUserSuggestions] = useState<any[]>([]);
+
+   useEffect(() => {
+      const handleFocusTarget = (e: any) => {
+         const { targetId, type, id } = e.detail || {};
+         if (!targetId && !id) return;
+
+         // If targeting a claim
+         if (type === 'CLAIM' || (id && claims.some((c: any) => c.id === id))) {
+            const claimIdToSelect = id || (targetId ? targetId.replace('claim-item-', '').replace('claim-', '') : null);
+            const matchedClaim = claims.find((c: any) => c.id === claimIdToSelect);
+            if (matchedClaim) {
+               setSelectedClaimId(matchedClaim.id);
+            }
+            setTimeout(() => {
+               const el = document.getElementById('claim-details-card') || document.getElementById('claim-workspace-container');
+               if (el) {
+                  el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  el.classList.add('ring-4', 'ring-sky-400', 'bg-sky-50/50', 'rounded-2xl', 'transition-all', 'duration-500');
+                  setTimeout(() => el.classList.remove('ring-4', 'ring-sky-400', 'bg-sky-50/50'), 3500);
+               }
+            }, 100);
+            return;
+         }
+
+         // If targeting evidence or source, check which claim has it
+         if (type === 'EVIDENCE' || type === 'SOURCE' || targetId?.startsWith('evidence-item-')) {
+            const evidId = id || targetId.replace('evidence-item-', '');
+            const owningClaim = claims.find((c: any) =>
+               c.evidence?.some((e: any) => (e.evidence?.id || e.id) === evidId) ||
+               c.sources?.some((s: any) => (s.source?.id || s.id) === evidId)
+            );
+            if (owningClaim && owningClaim.id !== selectedClaim?.id) {
+               setSelectedClaimId(owningClaim.id);
+            }
+         }
+
+         if (activeTab !== 'EVIDENCE') {
+            setActiveTab('EVIDENCE');
+         }
+
+         setTimeout(() => {
+            const el = document.getElementById(targetId);
+            if (el) {
+               el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+               const ringColor = type === 'UPDATE' ? 'outline-amber-400'
+                  : type === 'EVIDENCE' ? 'outline-emerald-400'
+                     : type === 'SOURCE' ? 'outline-indigo-400'
+                        : 'outline-blue-400';
+               const classes = [ringColor, 'outline', 'outline-2', '-outline-offset-2', 'shadow-lg', 'transition-all', 'duration-500', 'z-20', 'rounded-xl'];
+               el.classList.add(...classes);
+               setTimeout(() => el.classList.remove(...classes), 3000);
+            }
+         }, 180);
+      };
+      window.addEventListener('focus-target-item', handleFocusTarget);
+      return () => window.removeEventListener('focus-target-item', handleFocusTarget);
+   }, [activeTab, claims, selectedClaim]);
+
+   useEffect(() => {
+      if (!selectedClaim) return;
+      const updates = updatesData?.data?.updates || updatesData?.updates || [];
+      const allClaimsSuggestions = claims.map((c: any) => ({
+         id: c.id,
+         type: 'CLAIM',
+         prefix: '#claim-',
+         title: c.title,
+         author: c.creator?.fullName,
+         date: c.createdAt
+      }));
+
+      const suggestions = [
+         ...allClaimsSuggestions,
+         ...updates.map((up: any) => ({
+            id: up.id,
+            type: 'UPDATE',
+            prefix: '#status-',
+            title: up.content?.slice(0, 60) + (up.content?.length > 60 ? '...' : ''),
+            author: up.author?.fullName || (up.isAnonymous ? 'Anonymous' : 'Contributor'),
+            date: up.createdAt
+         })),
+         ...(selectedClaim.evidence || []).map((e: any) => ({
+            id: e.evidence?.id || e.id,
+            type: 'EVIDENCE',
+            prefix: '#evidence-',
+            title: e.evidence?.title || e.title,
+            author: e.evidence?.creator?.fullName || e.creator?.fullName,
+            date: e.evidence?.createdAt || e.createdAt
+         })),
+         ...(selectedClaim.sources || []).map((s: any) => ({
+            id: s.source?.id || s.id,
+            type: 'SOURCE',
+            prefix: '#source-',
+            title: s.source?.title || s.title,
+            author: s.source?.creator?.fullName || s.creator?.fullName,
+            date: s.source?.createdAt || s.createdAt
+         }))
+      ].filter(item => item.id).sort((a, b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime());
+      setMentionSuggestions(suggestions);
+
+      // Extract User Suggestions for @ mention
+      const userMap = new Map<string, any>();
+      const registerUser = (u: any, role: string) => {
+         if (!u) return;
+         const uname = u.userName || (u.fullName ? u.fullName.toLowerCase().replace(/\s+/g, '') : null) || u.id;
+         if (!uname) return;
+         if (!userMap.has(uname)) {
+            userMap.set(uname, {
+               id: u.id,
+               userName: uname,
+               fullName: u.fullName || uname,
+               avatar: getAvatarUrl(u),
+               role
+            });
+         }
+      };
+
+      if (selectedClaim.creator) registerUser(selectedClaim.creator, 'দাবি প্রস্তুতকারক');
+      if ((caseData as any)?.author) registerUser((caseData as any).author, 'লেখক');
+      updates.forEach((up: any) => { if (!up.isAnonymous && up.author) registerUser(up.author, 'আপডেট কন্ট্রিবিউটর'); });
+      (selectedClaim.evidence || []).forEach((e: any) => {
+         const cr = e.evidence?.creator || e.creator;
+         if (cr) registerUser(cr, 'প্রমাণ কন্ট্রিবিউটর');
+      });
+      const allOps = opinionsResponse?.data || [];
+      allOps.forEach((op: any) => {
+         if (!op.isAnonymous && op.author) registerUser(op.author, 'আলোচক');
+         if (op.replies) {
+            op.replies.forEach((r: any) => {
+               if (!r.isAnonymous && r.author) registerUser(r.author, 'আলোচক');
+            });
+         }
+      });
+
+      setUserSuggestions(Array.from(userMap.values()));
+   }, [selectedClaim, updatesData, caseData, opinionsResponse]);
 
    if (!selectedClaim) {
       return (
          <div className="bg-white border border-slate-200 rounded-2xl p-8 text-center shadow-sm">
             <p className="text-slate-500 mb-4 font-bold text-sm">এই বিষয়ে এখনও কোনো দাবি যোগ করা হয়নি।</p>
-            {isAuthenticated && (
+            {isAuthenticated && showCreateClaimAction && (
                <button onClick={onAddClaimClick} className="bg-slate-600 text-white px-4 py-2 rounded-lg text-sm font-semibold inline-flex items-center gap-2 hover:bg-slate-700">
                   <Plus size={16} /> দাবি যোগ করুন
                </button>
@@ -80,8 +269,17 @@ export default function ClaimWorkspace({
 
    const filteredClaims = claims.filter((c: any) => c.title?.toLowerCase().includes(searchQuery.toLowerCase()));
 
+   const changeSelectedClaim = (id: string) => {
+      setSelectedClaimId(id);
+      try {
+         const url = new URL(window.location.href);
+         url.searchParams.set('claim', id);
+         window.history.pushState({}, '', url.toString());
+      } catch (_) { }
+   };
+
    return (
-      <div className="flex flex-col gap-6 items-start w-full relative">
+      <div id="claim-workspace-container" className="flex flex-col gap-6 items-start w-full relative">
          {/* Main Content */}
          <div className="flex-1 min-w-0 space-y-6 w-full">
             {/* Top Bar with Dropdown */}
@@ -138,7 +336,7 @@ export default function ClaimWorkspace({
                                        <button
                                           key={claim.id || idx}
                                           onClick={() => {
-                                             setSelectedClaimId(claim.id);
+                                             changeSelectedClaim(claim.id);
                                              setActiveTab('EVIDENCE');
                                              setIsClaimsPanelOpen(false);
                                           }}
@@ -159,7 +357,7 @@ export default function ClaimWorkspace({
                                     );
                                  })}
                               </div>
-                              {isAuthenticated && (
+                              {isAuthenticated && showCreateClaimAction && (
                                  <div className="p-2 border-t border-slate-100 bg-slate-50">
                                     <button
                                        onClick={() => {
@@ -183,7 +381,7 @@ export default function ClaimWorkspace({
                         onClick={() => {
                            const idx = claims.findIndex((c: any) => c.id === selectedClaim.id);
                            if (idx > 0) {
-                              setSelectedClaimId(claims[idx - 1].id);
+                              changeSelectedClaim(claims[idx - 1].id);
                               setActiveTab('EVIDENCE');
                            }
                         }}
@@ -196,7 +394,7 @@ export default function ClaimWorkspace({
                         onClick={() => {
                            const idx = claims.findIndex((c: any) => c.id === selectedClaim.id);
                            if (idx < claims.length - 1) {
-                              setSelectedClaimId(claims[idx + 1].id);
+                              changeSelectedClaim(claims[idx + 1].id);
                               setActiveTab('EVIDENCE');
                            }
                         }}
@@ -210,7 +408,7 @@ export default function ClaimWorkspace({
             </div>
 
             {/* 2. Claim Details Card */}
-            <div className="bg-white rounded-2xl shadow-sm mb-4 overflow-hidden flex flex-col">
+            <div id="claim-details-card" className="bg-white rounded-2xl shadow-sm border border-slate-200/90 mb-4 overflow-hidden flex flex-col transition-all duration-300">
                <div className="p-5 sm:p-6 flex flex-col flex-1 overflow-hidden bg-white">
                   <div className="flex mb-5 flex-col xl:flex-row xl:items-center justify-between gap-4 mt-auto">
                      <div className="flex items-center gap-3">
@@ -272,16 +470,46 @@ export default function ClaimWorkspace({
                   {/* ... */}
 
                </div>
+               {/* Claim Updates / Current Status Timeline (Above Evidence & Sources) */}
+               <ClaimUpdatesSection
+                  claim={selectedClaim}
+                  caseData={caseData}
+                  onHighlight={(evIds, srcIds) => {
+                     setHighlightedEvidenceIds(evIds);
+                     setHighlightedSourceIds(srcIds);
+                     if (evIds.length > 0 || srcIds.length > 0) {
+                        setActiveTab('EVIDENCE');
+                        // Optional: smoothly scroll to the evidence section
+                        setTimeout(() => {
+                           const firstId = evIds[0] || srcIds[0];
+                           const el = document.getElementById(`evidence-item-${firstId}`);
+                           if (el) {
+                              el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                           } else {
+                              const container = document.getElementById('evidence-section-container');
+                              if (container) container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                           }
+                        }, 100);
+                     }
+                  }}
+               />
+            </div>
 
+
+
+            {/* Claim Evidence & Sources Card */}
+            <div className="bg-white rounded-2xl shadow-sm border border-slate-200/90 mb-4 flex flex-col relative">
                {/* Tabs */}
                <div className="flex items-center gap-6 border-t border-b border-slate-100 px-5 sm:px-6 pt-2 bg-white">
-                  <button
-                     onClick={() => setActiveTab('EVIDENCE')}
-                     className={`pb-3 text-sm font-bold transition-colors relative ${activeTab === 'EVIDENCE' ? 'text-slate-900' : 'text-slate-500 hover:text-slate-700'}`}
-                  >
-                     Claim Evidence & Sources
-                     {activeTab === 'EVIDENCE' && <div className="absolute -bottom-[1px] left-0 right-0 h-[2px] bg-slate-900 rounded-t-full" />}
-                  </button>
+                  {showEvidenceTab && (
+                     <button
+                        onClick={() => setActiveTab('EVIDENCE')}
+                        className={`pb-3 text-sm font-bold transition-colors relative ${activeTab === 'EVIDENCE' ? 'text-slate-900' : 'text-slate-500 hover:text-slate-700'}`}
+                     >
+                        Claim Evidence & Sources
+                        {activeTab === 'EVIDENCE' && <div className="absolute -bottom-[1px] left-0 right-0 h-[2px] bg-slate-900 rounded-t-full" />}
+                     </button>
+                  )}
                   <button
                      onClick={() => setActiveTab('DISCUSSION')}
                      className={`pb-3 text-sm font-bold transition-colors relative ${activeTab === 'DISCUSSION' ? 'text-slate-900' : 'text-slate-500 hover:text-slate-700'}`}
@@ -293,9 +521,9 @@ export default function ClaimWorkspace({
 
                {/* Tab Content */}
                <div className="bg-white pb-2">
-                  {activeTab === 'EVIDENCE' && (
+                  {showEvidenceTab && activeTab === 'EVIDENCE' && (
                      <div className="pt-4">
-                        {isAuthenticated && !isAddEvidenceOpen && (
+                        {showAddEvidenceInput && !isAddEvidenceOpen && (
                            <div className="px-5 sm:px-6 mb-5">
                               <div
                                  onClick={() => setIsAddEvidenceOpen(true)}
@@ -318,7 +546,7 @@ export default function ClaimWorkspace({
                            </div>
                         )}
 
-                        {isAuthenticated && isAddEvidenceOpen && (
+                        {showAddEvidenceInput && isAddEvidenceOpen && (
                            <div className="px-5 sm:px-6 mb-4">
                               <AddEvidenceForm
                                  isOpen={isAddEvidenceOpen}
@@ -328,17 +556,21 @@ export default function ClaimWorkspace({
                               />
                            </div>
                         )}
-                        <EvidenceSection
-                           caseData={{ ...caseData, claims: [selectedClaim] } as any}
-                           onAddEvidenceClick={() => setIsAddEvidenceOpen(true)}
-                           hideFilter={true}
-                        />
+                        <div id="evidence-section-container">
+                           <EvidenceSection
+                              caseData={{ ...caseData, claims: [selectedClaim] } as any}
+                              onAddEvidenceClick={() => setIsAddEvidenceOpen(true)}
+                              hideFilter={true}
+                              highlightedEvidenceIds={highlightedEvidenceIds}
+                              highlightedSourceIds={highlightedSourceIds}
+                           />
+                        </div>
                      </div>
                   )}
 
                   {activeTab === 'DISCUSSION' && (
                      <div className="p-5 sm:p-6">
-                        <DiscussionComments targetType="CLAIM" targetId={selectedClaim.id} />
+                        <DiscussionComments targetType="CLAIM" targetId={selectedClaim.id} mentionSuggestions={mentionSuggestions} userSuggestions={userSuggestions} />
                      </div>
                   )}
                </div>

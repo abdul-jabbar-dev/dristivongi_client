@@ -18,30 +18,32 @@ function AuthInitializer({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const initAuth = async () => {
-      let currentToken = localStorage.getItem('token') || null;
+      const currentToken = localStorage.getItem('token') || null;
+      if (currentToken) {
+        dispatch(setCredentials({ user: null, accessToken: currentToken }));
+      }
+      
       try {
-        if (currentToken) {
-          // Verify existing token
-          dispatch(setCredentials({ user: null, accessToken: currentToken }))
-          const res = await getMe().unwrap()
-          dispatch(setCredentials({ user: res.data, accessToken: currentToken }))
+        // If currentToken is invalid, baseQueryWithReauth will automatically try to refresh it
+        // and update the token via setCredentials before getMe() returns.
+        const res = await getMe().unwrap();
+        
+        // At this point, if a refresh happened, the new token is already in localStorage
+        const latestToken = localStorage.getItem('token');
+        if (latestToken) {
+          dispatch(setCredentials({ user: res.data, accessToken: latestToken }));
         } else {
-          // Try to refresh
-          const res = await refresh({}).unwrap()
-          if (res.accessToken) {
-             dispatch(setCredentials({ user: null, accessToken: res.accessToken }))
-             const meRes = await getMe().unwrap()
-             dispatch(setCredentials({ user: meRes.data, accessToken: res.accessToken }))
-          }
+          dispatch(logout());
         }
       } catch (e) {
-        dispatch(logout())
+        // If getMe fails (and refresh also failed or wasn't possible), log out
+        dispatch(logout());
       } finally {
-        dispatch(setLoading(false))
+        dispatch(setLoading(false));
       }
-    }
-    initAuth()
-  }, [dispatch, getMe, refresh])
+    };
+    initAuth();
+  }, [dispatch, getMe]);
 
   if (isLoading) {
     return <div className="flex h-screen w-full items-center justify-center">Loading...</div>

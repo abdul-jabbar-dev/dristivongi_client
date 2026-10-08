@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { Bookmark, Share2, MapPin, Globe, Images, Plus, FileText, Camera, Link as LinkIcon, MessageSquare, MessageCircle, Info } from 'lucide-react';
+import { Bookmark, Share2, MapPin, Globe, Images, Plus, FileText, Camera, Link as LinkIcon, MessageSquare, MessageCircle, Info, Settings } from 'lucide-react';
 import { resolveMediaUrl, removeHashtags, formatBengaliTime , getAvatarUrl} from '@/lib/utils';
 import { TCaseType } from '@/redux/feature/case/case.type';
 import MarkdownRenderer from '@/components/shared/MarkdownRenderer';
 import EvidenceSection from '@/components/case/EvidenceSection';
 import MediaGrid from '@/components/shared/MediaGrid';
 import DiscussionComments from '@/components/shared/DiscussionComments';
+import CaseSettingsModal from '@/components/case/CaseSettingsModal';
 import { ThumbsUp, ThumbsDown } from 'lucide-react';
 import { useSubmitCaseReactionMutation } from '@/redux/feature/case/case.reducer';
 import { toBengaliNumber } from '@/lib/utils';
@@ -22,6 +23,7 @@ export default function CompactCaseDetails({
   onAddEvidenceClick?: () => void
 }) {
   const [activeTab, setActiveTab] = useState<'EVIDENCE' | 'DISCUSSION'>('EVIDENCE');
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const dateObj = caseData.createdAt ? new Date(caseData.createdAt) : new Date();
   const dateStr = dateObj.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
   const authorName = (caseData as any).author?.fullName || 'Tanvir Hasan';
@@ -38,11 +40,149 @@ export default function CompactCaseDetails({
     type: m.media?.type || 'IMAGE',
   })).filter((m: any) => m.url);
 
+  // Compute all case-level mention suggestions (All claims, raw case evidence & sources, claim evidence & sources)
+  const caseMentionSuggestions = React.useMemo(() => {
+    const claims = (caseData as any).claims || [];
+    const claimSuggestions = claims.map((c: any) => ({
+      id: c.id,
+      type: 'CLAIM',
+      prefix: '#claim-',
+      title: c.title,
+      author: c.creator?.fullName,
+      date: c.createdAt
+    }));
+
+    const rawEvidenceSuggestions = ((caseData as any).evidence || []).map((e: any) => {
+      const item = e.evidence || e;
+      return {
+        id: item.id,
+        type: 'EVIDENCE',
+        prefix: '#evidence-',
+        title: item.title,
+        author: item.creator?.fullName,
+        date: item.createdAt
+      };
+    });
+
+    const rawSourceSuggestions = ((caseData as any).sources || []).map((s: any) => {
+      const item = s.source || s;
+      return {
+        id: item.id,
+        type: 'SOURCE',
+        prefix: '#source-',
+        title: item.title,
+        author: item.creator?.fullName,
+        date: item.createdAt
+      };
+    });
+
+    const claimsEvidenceSuggestions: any[] = [];
+    claims.forEach((c: any) => {
+      (c.evidence || []).forEach((e: any) => {
+        const item = e.evidence || e;
+        if (item?.id) {
+          claimsEvidenceSuggestions.push({
+            id: item.id,
+            type: 'EVIDENCE',
+            prefix: '#evidence-',
+            title: `[দাবি: ${c.title.slice(0, 20)}...] ${item.title || 'প্রমাণ'}`,
+            author: item.creator?.fullName,
+            date: item.createdAt
+          });
+        }
+      });
+      (c.sources || []).forEach((s: any) => {
+        const item = s.source || s;
+        if (item?.id) {
+          claimsEvidenceSuggestions.push({
+            id: item.id,
+            type: 'SOURCE',
+            prefix: '#source-',
+            title: `[দাবি: ${c.title.slice(0, 20)}...] ${item.title || 'উৎস'}`,
+            author: item.creator?.fullName,
+            date: item.createdAt
+          });
+        }
+      });
+    });
+
+    return [
+      ...claimSuggestions,
+      ...rawEvidenceSuggestions,
+      ...rawSourceSuggestions,
+      ...claimsEvidenceSuggestions
+    ].filter(item => item.id).sort((a, b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime());
+  }, [caseData]);
+
+  // Compute case-level user suggestions
+  const caseUserSuggestions = React.useMemo(() => {
+    const map = new Map<string, any>();
+    const register = (u: any, role: string) => {
+      if (!u) return;
+      const uname = u.userName || (u.fullName ? u.fullName.toLowerCase().replace(/\s+/g, '') : null) || u.id;
+      if (!uname) return;
+      if (!map.has(uname)) {
+        map.set(uname, {
+          id: u.id,
+          userName: uname,
+          fullName: u.fullName || uname,
+          avatar: getAvatarUrl(u),
+          role
+        });
+      }
+    };
+
+    if ((caseData as any).author) register((caseData as any).author, 'লেখক');
+    ((caseData as any).claims || []).forEach((c: any) => {
+      if (c.creator) register(c.creator, 'দাবি প্রস্তুতকারক');
+      (c.evidence || []).forEach((e: any) => {
+        const cr = e.evidence?.creator || e.creator;
+        if (cr) register(cr, 'প্রমাণ কন্ট্রিবিউটর');
+      });
+    });
+    ((caseData as any).evidence || []).forEach((e: any) => {
+      if (e.creator) register(e.creator, 'তথ্যদাতা');
+    });
+
+    return Array.from(map.values());
+  }, [caseData]);
+
+  React.useEffect(() => {
+    const handleFocus = (e: any) => {
+      const { targetId, type, id } = e.detail || {};
+      const rawEvid = (caseData as any).evidence || [];
+      const rawSources = (caseData as any).sources || [];
+      const isRawCaseItem = rawEvid.some((e: any) => (e.evidence?.id || e.id) === id) || rawSources.some((s: any) => (s.source?.id || s.id) === id);
+      
+      if (isRawCaseItem) {
+        if (activeTab !== 'EVIDENCE') {
+          setActiveTab('EVIDENCE');
+        }
+        
+        setTimeout(() => {
+          const el = document.getElementById(targetId);
+          if (el) {
+             el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+             const ringColor = type === 'UPDATE' ? 'outline-amber-400'
+                : type === 'EVIDENCE' ? 'outline-emerald-400'
+                   : type === 'SOURCE' ? 'outline-indigo-400'
+                      : 'outline-blue-400';
+             const classes = [ringColor, 'outline', 'outline-2', '-outline-offset-2', 'shadow-lg', 'transition-all', 'duration-500', 'z-20', 'rounded-xl'];
+             el.classList.add(...classes);
+             setTimeout(() => el.classList.remove(...classes), 3000);
+          }
+        }, 180);
+      }
+    };
+    window.addEventListener('focus-target-item', handleFocus);
+    return () => window.removeEventListener('focus-target-item', handleFocus);
+  }, [activeTab, caseData]);
+
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
+    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col relative">
       {/* Cover Image removed to match clean reference layout */}
 
-      <div className="p-5 sm:p-6 flex flex-col flex-1 overflow-hidden bg-white">
+      <div className="p-5 sm:p-6 flex flex-col flex-1 bg-white rounded-t-2xl">
         
         <div className="shrink-0">
           {/* Top Bar: Metadata, Stats & Actions */}
@@ -67,14 +207,23 @@ export default function CompactCaseDetails({
             </div>
 
             {/* Right: Stats and Button */}
-            <div className="flex flex-wrap items-center gap-4 self-start xl:self-auto">
+            <div className="flex flex-wrap items-center gap-2 self-start xl:self-auto">
               {isCreator && (
-                <button 
-                  onClick={onAddEvidenceClick}
-                  className="bg-emerald-50 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-100 font-semibold px-3 py-1.5 rounded-lg text-[13px] flex items-center gap-1.5 transition shrink-0"
-                >
-                  <Plus size={14} /> Add Evidence
-                </button>
+                <>
+                  <button 
+                    onClick={() => setIsSettingsOpen(true)}
+                    className="bg-slate-100 text-slate-700 hover:bg-slate-200 font-semibold px-3 py-1.5 rounded-lg text-[13px] flex items-center gap-1.5 transition shrink-0"
+                    title="অবদান ও অনুমতি সেটিংস"
+                  >
+                    <Settings size={14} /> সেটিংস
+                  </button>
+                  <button 
+                    onClick={onAddEvidenceClick}
+                    className="bg-emerald-50 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-100 font-semibold px-3 py-1.5 rounded-lg text-[13px] flex items-center gap-1.5 transition shrink-0"
+                  >
+                    <Plus size={14} /> Add Evidence
+                  </button>
+                </>
               )}
             </div>
           </div>
@@ -205,11 +354,23 @@ export default function CompactCaseDetails({
          
          {activeTab === 'DISCUSSION' && (
             <div className="p-5 sm:p-6">
-                <DiscussionComments targetType="CASE" targetId={caseData.id} />
+                <DiscussionComments 
+                   targetType="CASE" 
+                   targetId={caseData.id} 
+                   mentionSuggestions={caseMentionSuggestions}
+                   userSuggestions={caseUserSuggestions}
+                />
             </div>
          )}
       </div>
 
+       {isCreator && (
+         <CaseSettingsModal 
+           isOpen={isSettingsOpen} 
+           onClose={() => setIsSettingsOpen(false)} 
+           caseData={caseData} 
+         />
+       )}
     </div>
   );
 }
